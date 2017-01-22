@@ -172,7 +172,7 @@ class PLCParser():
         except:
             return None
     
-    def deFormat(self, l):
+    def deFormat(self, lst, short=False, firstOnly=False):
         pass
 
 parseInput = PLCParser.parseInput
