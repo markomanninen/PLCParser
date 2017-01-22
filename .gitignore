@@ -87,3 +87,11 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Composer and bower project files
+composer.phar
+vendor/
+node_modules/
+.DS_Store
+bower_components/
+*.log
