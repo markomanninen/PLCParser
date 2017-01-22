@@ -1,0 +1,49 @@
+{
+
+    "name": "markomanninen/PLCParser",
+
+    "version": "0.0.1",
+
+    "description": "Prepositional logic clause parser (PHP)",
+
+    "keywords": ["elonmedia", "javascript", "python", "php", "parser", "propositional logic"],
+
+    "license": "MIT",
+
+    "authors": [
+
+        {
+
+            "name": "Marko Manninen",
+
+            "email": "elonmedia@gmail.com"
+
+        }
+
+    ],
+
+    "require-dev": {
+
+        "phpunit/phpunit": "4.0.*"
+
+    },
+
+    "require": {
+
+        "justinrainbow/json-schema": "*",
+
+        "ext-mbstring": "*"
+
+    },
+
+    "autoload": {
+
+        "psr-0": {
+
+            "": "src/elonmedia/plcparser/php/"
+
+        }
+
+    }
+
+}
