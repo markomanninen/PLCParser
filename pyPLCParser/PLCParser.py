@@ -175,4 +175,11 @@ class PLCParser():
     def deFormat(self, lst, short=False, firstOnly=False):
         pass
 
+    def evaluate(self, i, table={}):
+        if type(i) == str:
+            i = self.parse(i)
+        if type(i) == list:
+            pass
+        return None
+
 parseInput = PLCParser.parseInput
