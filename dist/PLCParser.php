@@ -191,17 +191,17 @@ class PLCParser
         }
     }
     
-    public function deFormat($lst, $short=FALSE, $firstOnly=FALSE){
+    public function deFormat($lst, $short=FALSE, $firstOnly=FALSE) {
         return NULL;
     }
 
     public function evaluate($input, $table=array()) {
-        if (is_string($input)) {
-            $input = $this->parse($input);
-        }
-        if (is_array($input)) {
+    	if (is_string($input)) {
+    		$input = $this->parse($input);
+    	}
+    	if (is_array($input)) {
 
-        }
+    	}
         return NULL;
     }
 }
