@@ -86,7 +86,7 @@ class PLCParser():
                 return -1
             # xor operator becomes 0
             elif x.strip() == "^" or x.strip() == "xor":
-                return 0
+                return -2
             # literal placeholders gets replaced
             elif x in self.literals:
                 y = self.literals[x]
@@ -171,6 +171,15 @@ class PLCParser():
             return c.parse(input_string)
         except:
             return None
+
+    @staticmethod
+    def evaluateInput(input_string, table={}):
+        """ bypass object construct """
+        c = PLCParser()
+        try:
+            return c.evaluate(input_string, table)
+        except:
+            return None
     
     def deFormat(self, lst, short=False, firstOnly=False):
         pass
@@ -178,8 +187,45 @@ class PLCParser():
     def evaluate(self, i, table={}):
         if type(i) == str:
             i = self.parse(i)
-        if type(i) == list:
-            pass
+        if type(i) == tuple:
+            return self.truth_value(i[1], not i[0], table)
         return None
 
+    def truth_value(self, current_item, mutual=True, table=None, negate=False, xor=False):
+        # if item is not a list, check the truth value
+        if not isinstance(current_item, list):
+            if table and current_item in table:
+                current_item = table[current_item]
+            if str(current_item).lower() in ['true', '1']:
+                return not negate 
+            return negate
+        # item is a list
+        a = []
+        # should we negate next item, was it a list or values
+        next_item_negate, next_item_xor = False, False
+        for item in current_item:
+            # negation marker
+            if item == -1:
+                next_item_negate = True
+            # xor marker
+            elif item == -2:
+                next_item_xor = True
+            else:
+                a.append(self.truth_value(item, not mutual, table, next_item_negate, next_item_xor))
+                # reset negation and xor
+                next_item_negate = False
+                next_item_xor = False
+        # is group AND / OR / XOR
+        # take care of negation for the list result too
+        if xor:
+            # if any of the values is true, but not all
+            return not (any(a) and not all(a)) if negate else any(a) and not all(a)
+        elif mutual:
+            # if all values are true
+            return not all(a) if negate else all(a)
+        else:
+            # if some of the values is true
+            return not any(a) if negate else any(a)
+
 parseInput = PLCParser.parseInput
+evaluateInput = PLCParser.evaluateInput
