@@ -28,6 +28,7 @@
   },
 
   "devDependencies": {
-    "jquery": "*"
+    "jquery": "*",
+    "bootstrap": "*"
   }
 }
