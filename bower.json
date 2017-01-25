@@ -1,16 +1,21 @@
 {
   "name": "PLCParser",
+  
   "description": "PLCParser - Prepositional Logic Clause Parser (Python, PHP, Javascript)",
-  "main": "index.php",
+  
   "authors": [
     "Marko Manninen"
   ],
+  
   "license": "MIT",
+
   "keywords": [
     "elonmedia",
     "plcparser"
   ],
+  
   "homepage": "https://github.com/markomanninen/PLCParser",
+
   "ignore": [
     "**/.*",
     "node_modules",
@@ -18,6 +23,11 @@
     "test",
     "tests"
   ],
+
   "dependencies": {
+  },
+
+  "devDependencies": {
+    "jquery": "*"
   }
 }
