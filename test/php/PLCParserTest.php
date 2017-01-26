@@ -1,5 +1,6 @@
 <?php
 
+/*
 use \elonmedia\plcparser\php\PLCParser;
 
 class PLCParserTest extends PHPUnit_Framework_TestCase
@@ -115,3 +116,4 @@ class PLCParserTest extends PHPUnit_Framework_TestCase
 	}
 
 }
+*/
