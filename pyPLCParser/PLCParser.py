@@ -180,8 +180,17 @@ class PLCParser():
             return c.evaluate(input_string, table)
         except:
             return None
+
+    @staticmethod
+    def deformatInput(lst, short=False, firstonly=False, latex=False):
+        """ bypass object construct """
+        c = PLCParser()
+        try:
+            return c.deformat(lst, short, firstonly, latex)
+        except:
+            return None
     
-    def deFormat(self, lst, short=False, firstOnly=False):
+    def deFormat(self, lst, short=False, firstonly=False, latex=False):
         pass
 
     def evaluate(self, i, table={}):
@@ -229,3 +238,4 @@ class PLCParser():
 
 parseInput = PLCParser.parseInput
 evaluateInput = PLCParser.evaluateInput
+deformatInput = PLCParser.deformatInput
