@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 import unittest
 from pyPLCParser import PLCParser, parseInput, evaluateInput, deformatInput
 
