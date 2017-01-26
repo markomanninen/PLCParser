@@ -1,0 +1,33 @@
+{
+  "name": "plcparser",
+  "version": "0.0.1",
+  "description": "Prepositional logic clause parser (PHP)",
+  "keywords": ["elonmedia", "javascript", "python", "php", "parser", "propositional logic"],
+  "author": "Marko Manninen",
+  "license": "MIT",
+  "dependencies": {
+    "requirejs": "latest",
+    "bower": "latest"
+  },
+  "devDependencies": {
+    "selenium-webdriver": "latest",
+    "chromedriver": "latest",
+    "phantomjs-prebuilt": "latest",
+    "coffee-script": "latest",
+    "mocha": "latest",
+    "chai": "latest",
+    "chai-as-promised": "latest",
+    "sinon": "latest",
+    "karma": "latest",
+    "karma-mocha": "latest",
+    "karma-html-reporter": "latest",
+    "karma-selenium-webdriver-launcher": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markomanninen/PLCParser.git"
+  },
+  "scripts": {
+    "postinstall": "./node_modules/bower/bin/bower install"
+  }
+}

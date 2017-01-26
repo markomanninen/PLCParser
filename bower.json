@@ -29,6 +29,8 @@
 
   "devDependencies": {
     "jquery": "*",
-    "bootstrap": "*"
+    "jquery-ui": "*",
+    "bootstrap": "*",
+    "MathJax": "*"
   }
 }

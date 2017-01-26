@@ -1,0 +1,70 @@
+language: php
+
+php:
+  - 5.6
+  - 7.0
+  - 7.1
+
+python:
+  - 3.4
+
+env:
+  global:
+    - secure: "Hbs0fuD4Y/nybxMR++YSaddF41F52LOUOE3Ow5KVRcGh9sL7/WMQMhDGr+cgZcckB8zUZQL6R4YRfwu4dzUSR4RpcOPQsPY2WObgWVefPg1PaP0VAtol8+nw5eT7786RyR76pZjjqkra9JWlASQIByfnpBvh9/Q/vs/RqfCH5XyBUulELMplYAi4+CLLUmm7xCyyQAjTFztHWd7hLcMcS/E6M8py9/B8uscwunNMhKPQ1UjusmmhIi5Nu2fs7vBhEhETUBe3/8EnTo/e7itiv9DNG//T8ndraa2e2ili2cCww0ZiKbZ6IsbKQH4WT0FwnlIQpNX0U8FslbHZvwpor64lexV7AR4atjSZWD103QVNTCtfO2/y3cFVoeGlm1C7mlPlfmC7kxiZZtT3OJHdpaEqwos4FqSUKI6GRE+VDvxSuk/n/ra6nen5eGJ7Rn1n1aZv6BacK73VdXrQaGPd8waN/BlZYO8vTFN6q09uivPzSTzQ/535xSwSHxaVbtNcw/IuFYvCe8J54PxpYN3EwBk73fNmnHDfyDPh1cLHE2Ud/UUvtRKxMxHbYpIVHZyrcHRRoto6Y8v3m0cQOJkX0kRhoSqW0l6FTOSwPTGM9SEb1wQ9F+7hBIBBsIEo4gbhLDJM9JovnytYTyn9J1NXl3Tmna2xAJE1DfOyQooBPVk="
+  matrix:
+    - TRAVIS_NODE_VERSION="6"
+
+before_install:
+  # python
+  - sudo apt-get -y install python3-pip python-dev
+  - sudo pip3 install -U setuptools
+  - sudo pip3 install -U virtualenvwrapper
+  - python3 -V
+  - pip3 -V
+
+install:
+  # new version of node and npm
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
+  - npm install
+  - sudo pip3 install -r requirements.txt
+
+before_script:
+  - sudo apt-get update > /dev/null
+  - sudo apt-get install -y --force-yes apache2 libapache2-mod-php5
+  - sudo apt-get install -y --force-yes php5-dev php-pear php5-curl php5-mysql php5-intl php5-gd php5-json php5-sqlite php5-pgsql
+  - sudo a2enmod headers
+  - phpenv config-add custom-php.ini
+  #- phpenv config-rm xdebug.ini
+  - sudo cp -f travis-ci-apache /etc/apache2/sites-available/default
+  - sudo sed -i -e "s,/var/www,$(pwd),g" --in-place /etc/apache2/sites-available/default
+  - echo "ServerName localhost" | sudo tee /etc/hosts
+  - sudo /etc/init.d/apache2 restart
+  - npm update
+  - bower install
+  - sh -e /etc/init.d/xvfb start
+  - export DISPLAY=:99.0
+  - wget http://selenium-release.storage.googleapis.com/3.0/selenium-server-standalone-3.0.1.jar
+  - java -jar selenium-server-standalone-3.0.1.jar > /tmp/selenium.log 2> /tmp/selenium.error &
+  - composer install --prefer-source --no-interaction
+
+script:
+  - phpunit
+  #- mocha ./test/js/integration-test.coffee --compilers coffee:coffee-script/register --timeout 30000
+  #- mocha ./test/js/totodoo.coffee --compilers coffee:coffee-script/register --timeout 30000
+  #- mocha ./test/js/test.js --timeout 30000
+  - python -m unittest discover -s test\python -p "test.py"
+
+matrix:
+  fast_finish: true
+
+notifications:
+  on_success: never
+  on_failure: always
+
+deploy:
+  provider: heroku
+  api_key:
+    - secure: "P0Jp5qyzvxJ9n67eMd8mwmyN6cihu97OIwpF4DLaM/yf1OPMaVzb72e3wpucUb4ZprlZ/bHa8fnGNYhHLcyFzkrjK8vWh96BnEsoJQYm37ex69CYMjrry1wn1op4rF3r3hLKTZ18/YiBZ06XHx+zmHq4TGQiBFEILEsltulrVpUGELywHDdlj0yHu0Bhw1Lt2g5K8W8i6BisuVgnOHvEe8z2q5dOiKDREvVYxmS6tGNdr4FpIy7FFxBkvH7uFxeF15C/AoHjo0tu6FgYLeGcdwIqKXxdcTqhERomw8jLHaatCkX7VIvE2xaXuvtThx/C3nWuC5g3e+oG9k/+qvi/f2+Si91lzHT1+bOoC58shj6A84pIK1gpXSHbS+VshzxficCmAan9pyWsP75vNTK6sFTdKBwbJ7nae/Zv2JlXv6/SB6VQa6wf7r7fgIseohZQZBHzi1ukLqGVynNybG7wwHjaSBM3BKxZxM2X6+XOZYIbep9G3HrdshtNHj6c2u7lZym85jAqcZKZYvocRs8o+nux6D5/ZTlapRV7zyMEJYKvkiCfe4WTF5qODC6ghKTB2B63tG+TSMXAnQsjRZRsS4+9bRKPGJ5e2KWRZhD+7316z7rRZvljqVGEVk27gxyrHem1YvVz1u79/H6mtlDdZ7SFfKl4HqIr2GrzcfIEVkc="
+  app: plcparser
+  on:
+    repo: markomanninen/plcparser
