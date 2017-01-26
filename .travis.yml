@@ -16,16 +16,16 @@ env:
 before_install:
   # python
   - sudo apt-get install python3-setuptools
-  - wget https://bootstrap.pypa.io/get-pip.py
-  - python3 get-pip.py
+  #- wget https://bootstrap.pypa.io/get-pip.py
+  #- python3 get-pip.py
   - python3 -V
-  - pip3 -V
+  #- pip3 -V
 
 install:
   # new version of node and npm
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
   - npm install
-  - sudo pip3 install -r requirements.txt
+  #- sudo pip3 install -r requirements.txt
 
 before_script:
   - sudo apt-get update > /dev/null
