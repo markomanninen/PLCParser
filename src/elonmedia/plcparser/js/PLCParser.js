@@ -17,12 +17,17 @@ function PLCParser(parentheses, wrappers) {
 			'([\)])[\s]*(\^|\\||\&|\!)[\s]+|'+
 			'[\s]+(\^|\\||\&|\!)[\s]*([\(])|'+
 			'[\s]+(\^|\\||\&|\!)[\s]+')
+	// for math chars: ⊕ ∨ ∧ ¬
+	parser.PREPROCESS_OPERATORS3 = new RegExp(
+			'([\)])[\s]*(⊕|∨|∧|¬)[\s]+|'+
+			'[\s]+(⊕|∨|∧|¬)[\s]*([\(])|'+
+			'[\s]+(⊕|∨|∧|¬)[\s]+')
 	// get operators from start, middle and end of the string
-	parser.OPERATORS = new RegExp('(^|\s*)(or|and|\\||\&)(\s*|$)', 'ig')
+	parser.OPERATORS = new RegExp('(^|\s*)(or|and|\\||\&|∨|∧)(\s*|$)', 'ig')
 	// find xor operator
-	parser.XOR = new RegExp('(\^|xor)', 'ig')
+	parser.XOR = new RegExp('(\^|xor|⊕)', 'ig')
 	// find not operator
-	parser.NOT = new RegExp('(\!|not)', 'ig')
+	parser.NOT = new RegExp('(\!|not|¬)', 'ig')
 	// setup parentheses
 	parser.OPEN_PARENTHESES = null
 	if (parentheses && parentheses[0]) parser.OPEN_PARENTHESES = parentheses[0]
@@ -79,9 +84,11 @@ function PLCParser(parentheses, wrappers) {
 	}
 
 	parser.sanitize = function(s) {
-		// make sentence well formatted: "(A and(B)   or C)" -> "(A and (B) or C)"
+		// make sentence well formatted: 
+		// "(A and(B)   or C)" -> "(A and (B) or C)"
 		s = s.replace(this.PREPROCESS_OPERATORS1, "$1 $2$5$3 $4")
 		s = s.replace(this.PREPROCESS_OPERATORS2, "$1 $2$5$3 $4")
+		s = s.replace(this.PREPROCESS_OPERATORS3, "$1 $2$5$3 $4")
 		// replace operators with empty space
 		s = s.replace(this.OPERATORS, ' ')
 		// prepare to remove exclamation mark, that is used for NOT boolean logic tree
@@ -95,10 +102,10 @@ function PLCParser(parentheses, wrappers) {
 
 	parser.substitute = function(x) {
 		// not operator becomes -1
-		if (x == "!" || x == "not") {
+		if (x == "!" || x == "not" || x == "¬") {
 			x = -1
 		// xor operator becomes 0
-		} else if (x == "^" || x == "xor") {
+		} else if (x == "^" || x == "xor" || x == "⊕") {
 			x = -2
 		// literal placeholders gets replaced
 		} else if (x in parser.literals) {
@@ -136,8 +143,8 @@ function PLCParser(parentheses, wrappers) {
 		if (level == n) {
 			var o = s.match(this.OPERATORS)
 			if (o) {
-				var t = o.join('').toLowerCase().trim()
-				this.mutual = (t == "and" || t == "&")
+				var t = o[0].toLowerCase().trim()
+				this.mutual = (t == "and" || t == "&" || t == "∧")
 			}
 		}
 	}
@@ -156,9 +163,10 @@ function PLCParser(parentheses, wrappers) {
 			// add literals to root and flush tail
 			var y = this.convertLiteralToList(x)
 			if (y) {
-				root.push(y)
+				root = root.concat(y)
 			}
 		}
+		return root
 	}
 
 	parser.recursiveParenthesesGroups = function(i, level) {
@@ -173,7 +181,7 @@ function PLCParser(parentheses, wrappers) {
 			var char = this.literal_string.substring(i, i+1)
 			// create a new node if (
 			if (char == this.OPEN_PARENTHESES) {
-				this._sub(root, tail, level, 1)
+				root = this._sub(root, tail, level, 1)
 				tail = []
 				// now recursively get the next data
 				var l = this.recursiveParenthesesGroups(i+1, level+1)
@@ -183,7 +191,7 @@ function PLCParser(parentheses, wrappers) {
 			// close the node and return back to parent if )
 			} else if (char == this.CLOSE_PARENTHESES) {
 				level -= 1;
-				this._sub(root, tail, level, 0)
+				root = this._sub(root, tail, level, 0)
 				// it is important to return these information back to parent node
 				return [root, i + 1, level]
 			// we are staying on same node level, collect characters
@@ -201,17 +209,128 @@ function PLCParser(parentheses, wrappers) {
 	}
 
 	parser.parse = function(input_string) {
-		//""" main method """
+		// main method
 		this.input_string = input_string.trim()
 		this.setLiterals(this.input_string)
 		return this.recursiveParenthesesGroups()
 	}
 
-	parser.deformat = function(lst, short, firstOnly) {
-		// defaults
-		var short = short || false
-		var firstOnly = firstOnly || false
-		return null
+	parser.validate = function validate(s) {
+		// check parentheses and wrappers characters that they match
+		// TODO: use class parentheses and wrappers variable
+		var result = true
+		var stack = []
+		var current, last, previous
+		for (var i = 0, l = s.length; i < l; i++) {
+			// current character
+			current = s.substring(i, i+1)
+			// if clas character was escape character, then 
+			// swap it with the current one and continue to the next char
+			if (previous == '\\') {
+				previous = current
+				continue;
+			}
+			// last stacked char
+			last = stack.last()
+
+			if (
+			((current == '(' || current == '[' || current == '{') && last != "'" && last != "'" ) ||
+				((current == "'" && last != "'" && last != '\\')) ||
+				 (current == '"' && last != '"' && last != '\\')) {
+				stack.push(current);
+			} else if(
+			((current == ')' || current == ']' || current == '}' ) && last != "'" && last != '"') || 
+											  current == "'" ||
+											  current == '"') {
+				if (stack.length == 0) {
+					result = false
+				} else {
+					if((current == ')' && last == '(') ||
+					   (current == ']' && last == '[') ||
+					   (current == '}' && last == '{') ||
+					   (current == '"' && last == '"') ||
+					   (current == "'" && last == "'")) {
+						stack.pop()
+					} else {
+						result = false
+					}
+				}
+			}
+			// update previous char
+			previous = current
+		}
+		// no closing char found
+		if (stack.length > 0) result = false;
+		return result
+	}
+
+	parser.deformat = function(lst, short, first, latex) {
+		var first_operator_used = false
+		function _(current_item, mutual, negate, xor) {
+			// if item is not a list, return value
+			if (typeof(current_item) !== typeof([])) {
+				if ((current_item == 1 || current_item.toLowerCase() == 'true' ||
+					 current_item == 0 || current_item.toLowerCase() == 'false'))
+					return current_item
+				return parser.wrappers[0]+current_item+parser.wrappers[0]
+			}
+			// item is a list
+			var a = ['(']
+			// should we negate next item, was it a list or values
+			var next_item_negate = false, next_item_xor = false, was_first = false
+			var i, len = current_item.length
+			for (i=0; i<len; ++i) {
+				var item = current_item[i]
+				// negation marker
+				if (item == -1) {
+					next_item_negate = true
+					if (i==0) was_first = true
+				// xor marker
+				} else if (item == -2) {
+					next_item_xor = true
+					if (i==0) was_first = true
+				// item or list
+				} else {
+					// should we add operators?
+					// no if item is the first OR
+					// not / xor was used OR
+					// we use only the first
+					if (i > 0 && !was_first && !first_operator_used) {
+						if (mutual) {
+							if (short) a.push('&')
+							else if (latex) a.push('∧')
+							else a.push('and')
+						} else {
+							if (short) a.push('|')
+							else if (latex) a.push('∨')
+							else a.push('or')
+						}
+						if (first) {
+							first = false
+							first_operator_used = true
+						}
+					}
+					if (next_item_negate) {
+						if (short) a.push('!')
+						else if (latex) a.push('¬')
+						else a.push('not')
+					}
+					if (next_item_xor && typeof(item) === typeof([])) {
+						if (short) a.push('^')
+						else if (latex) a.push('⊕')
+						else a.push('xor')
+					}
+					a.push(_(item, !mutual, next_item_negate, next_item_xor))
+					// reset negation and xor
+					next_item_negate = false
+					next_item_xor = false
+					was_first = false
+				}
+			}
+			a.push(')');
+			return a.join(' ')
+		}
+		return _(lst[1], !lst[0])
 	}
 
 	parser.evaluate = function(input, table) {
@@ -239,8 +358,10 @@ function PLCParser(parentheses, wrappers) {
 	parser.truthValue = function(current_item, mutual, table, negate, xor) {
 		// if item is not a list, check the truth value
 		if (typeof(current_item) !== typeof([])) {
+			// see if translation table is given
 			if (table && current_item in table)
 				current_item = table[current_item]
+			// cast to string and lower case for easier comparison
 			var v = current_item+"".toLowerCase()
 			if (v == 'true' || v == '1') {
 				return !negate 
@@ -253,21 +374,19 @@ function PLCParser(parentheses, wrappers) {
 		var next_item_negate = false, next_item_xor = false
 		var i, len = current_item.length
 		for (i=0; i<len; ++i) {
-			//if (i in current_item) {
-				var item = current_item[i]
-				// negation marker
-				if (item == -1) {
-					next_item_negate = true
-				// xor marker
-				} else if (item == -2) {
-					next_item_xor = true
-				} else {
-					a.push(this.truthValue(item, !mutual, table, next_item_negate, next_item_xor))
-					// reset negation and xor
-					next_item_negate = false
-					next_item_xor = false
-				}
-			//}
+			var item = current_item[i]
+			// negation marker
+			if (item == -1) {
+				next_item_negate = true
+			// xor marker
+			} else if (item == -2) {
+				next_item_xor = true
+			} else {
+				a.push(this.truthValue(item, !mutual, table, next_item_negate, next_item_xor))
+				// reset negation and xor
+				next_item_negate = false
+				next_item_xor = false
+			}
 		}
 		// is group AND / OR / XOR
 		// take care of negation for the list result too
@@ -295,7 +414,6 @@ function PLCParser(parentheses, wrappers) {
 }
 
 PLCParser.parseInput = function(input_string) {
-	//""" bypass object construct """
 	var c = PLCParser()
 	try {
 		return c.parse(input_string)
@@ -305,10 +423,27 @@ PLCParser.parseInput = function(input_string) {
 }
 
 PLCParser.evaluateInput = function(input_string, table) {
-	//""" bypass object construct """
 	var c = PLCParser()
 	try {
 		return c.evaluate(input_string, table)
+	} catch(err) {
+		return null
+	}
+}
+
+PLCParser.deformatInput = function(a, short, first, latex) {
+	var c = PLCParser()
+	try {
+		return c.deformat(a, short, first, latex)
+	} catch(err) {
+		return null
+	}
+}
+
+PLCParser.validateInput = function(s) {
+	var c = PLCParser()
+	try {
+		return c.validate(s)
 	} catch(err) {
 		return null
 	}
