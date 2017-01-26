@@ -4,13 +4,6 @@ use \elonmedia\plcparser\php\PLCParser;
 
 class PLCParserTest extends PHPUnit_Framework_TestCase
 {
-	protected void setUp() {
-		
-	}
-	protected void tearDown() {
-		
-	}
-
 	public function testPLCParserDefault() {
 		$c = new PLCParser();
 
@@ -26,7 +19,7 @@ class PLCParserTest extends PHPUnit_Framework_TestCase
 	}
 
 	public function testPLCParserCustom() {
-		$c = new PLCParser(array('{' '}'), array('´'));
+		$c = new PLCParser(array('{', '}'), array('´'));
 
 		$this->assertEquals(
 			$this->plcparser->parse("{A & B}"), 
@@ -91,7 +84,7 @@ class PLCParserTest extends PHPUnit_Framework_TestCase
 
 		$this->assertEquals(
 			$c->parse("!(A or B (C D))"), 
-			array(FALSE, array(array(-1, array('A', 'B', array('C', 'D'))))
+			array(FALSE, array(array(-1, array('A', 'B', array('C', 'D')))))
 		);
 	}
 
@@ -105,7 +98,7 @@ class PLCParserTest extends PHPUnit_Framework_TestCase
 
 		$this->assertEquals(
 			$c->parse("^(A or B (C D))"), 
-			array(FALSE, array(array(-2, array('A', 'B', array('C', 'D'))))
+			array(FALSE, array(array(-2, array('A', 'B', array('C', 'D')))))
 		);
 	}
 
