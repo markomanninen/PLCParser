@@ -16,7 +16,8 @@ env:
 before_install:
   # python
   - sudo apt-get install python3-setuptools
-  - python3 -m pip
+  - wget https://bootstrap.pypa.io/get-pip.py
+  - python3 get-pip.py
   - python3 -V
   - pip3 -V
 
