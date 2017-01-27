@@ -1,31 +1,34 @@
 "use strict";
 
 function PLCParser(parentheses, wrappers) {
-	// main object to collect methods. it will be returned to the caller
+	// main object to collect methods and variables
+	// it will be returned to the caller
 	var parser = parser || {}
 
 	// normalize string to standard format i.e.
 	// separate operators from other strings and add spaces
-	// for keywords: xor or and not
+	// for keywords: xor xand or and not
 	parser.PREPROCESS_OPERATORS1 = new RegExp(
-			'([\)])[\s]*(xor|or|and|not)[\s]+|'+
-			'[\s]+(xor|or|and|not)[\s]*([\(])|'+
-			'[\s]+(xor|or|and|not)[\s]+'
+			'([\)])[\s]*(xor|or|xand|and|not)[\s]+|'+
+			'[\s]+(xor|or|xand|and|not)[\s]*([\(])|'+
+			'[\s]+(xor|or|xand|and|not)[\s]+'
 			, 'ig')
-	// for special chars: ^ | & !
+	// for special chars: + ^ | & !
 	parser.PREPROCESS_OPERATORS2 = new RegExp(
-			'([\)])[\s]*(\^|\\||\&|\!)[\s]+|'+
-			'[\s]+(\^|\\||\&|\!)[\s]*([\(])|'+
-			'[\s]+(\^|\\||\&|\!)[\s]+')
-	// for math chars: ⊕ ∨ ∧ ¬
+			'([\)])[\s]*(\^|\\||\\+|\&|\!)[\s]+|'+
+			'[\s]+(\^|\\||\\+|\&|\!)[\s]*([\(])|'+
+			'[\s]+(\^|\\||\\+|\&|\!)[\s]+')
+	// for math chars: ⊖ ⊕ ∨ ∧ ¬
 	parser.PREPROCESS_OPERATORS3 = new RegExp(
-			'([\)])[\s]*(⊕|∨|∧|¬)[\s]+|'+
-			'[\s]+(⊕|∨|∧|¬)[\s]*([\(])|'+
-			'[\s]+(⊕|∨|∧|¬)[\s]+')
+			'([\)])[\s]*(⊕|∨|⊖|∧|¬)[\s]+|'+
+			'[\s]+(⊕|∨|⊖|∧|¬)[\s]*([\(])|'+
+			'[\s]+(⊕|∨|⊖|∧|¬)[\s]+')
 	// get operators from start, middle and end of the string
-	parser.OPERATORS = new RegExp('(^|\s*)(or|and|\\||\&|∨|∧)(\s*|$)', 'ig')
-	// find xor operator
+	parser.OPERATORS = new RegExp('(^|\\s+)(or|and|\\||\&|∨|∧)(\\s+|$)', 'ig')
+	// find xor operator, meaningful in groups only
 	parser.XOR = new RegExp('(\^|xor|⊕)', 'ig')
+	// find xand operator, meaningful in groups only
+	parser.XAND = new RegExp('(\\+|xand|⊖)', 'ig')
 	// find not operator
 	parser.NOT = new RegExp('(\!|not|¬)', 'ig')
 	// setup parentheses
@@ -38,6 +41,9 @@ function PLCParser(parentheses, wrappers) {
 	//http://stackoverflow.com/questions/430759/regex-for-managing-escaped-characters-for-items-like-string-literals  
 	parser.wrappers = wrappers || ["'", '"']
 
+	// generate regex to match wrapper on string, 
+	// supporting multiple wrappers at the same time
+	// " and ' are the default, but ´ is a good one too
 	function createLiteralsRegEx(wrappers) {
 		var i, s, len = wrappers.length, a = []
 		var t = "%s[^%s\\\\]*(?:\\\\.[^%s\\\\]*)*%s"
@@ -57,13 +63,13 @@ function PLCParser(parentheses, wrappers) {
 	parser.literals = {}
 
 	parser.setLiterals = function(input_string) {
-		var n = 1
 		this.literals = {}
+		// key number
+		var n = 1
 		// find literals
 		var groups = input_string.match(this.STRING_LITERALS)
 		while (groups !== null) {
-			var i, len = this.wrappers.length
-			for (i=0; i<len; ++i) {
+			for (var i=0, l=this.wrappers.length; i<l; ++i) {
 			  if (i in groups) {
 				var g = groups[i]
 				var key = 'LITERAL' + n
@@ -95,6 +101,8 @@ function PLCParser(parentheses, wrappers) {
 		s = s.replace(this.NOT, ' $1 ')
 		// prepare to remove ^ mark, that is used for XOR boolean logic tree
 		s = s.replace(this.XOR, ' $1 ')
+		// prepare to remove + mark, that is used for XAND boolean logic tree
+		s = s.replace(this.XAND, ' $1 ')
 		// remove extra double, triple and other longs whitespaces
 		// only single spaces between literals are left
 		return s.split(" ").filter(function(e){ return e === 0 || e }).join(' ')
@@ -104,24 +112,24 @@ function PLCParser(parentheses, wrappers) {
 		// not operator becomes -1
 		if (x == "!" || x == "not" || x == "¬") {
 			x = -1
-		// xor operator becomes 0
+		// xor operator becomes -2
 		} else if (x == "^" || x == "xor" || x == "⊕") {
 			x = -2
+		// xand operator becomes -3
+		} else if (x == "+" || x == "xand" || x == "⊖") {
+			x = -3
 		// literal placeholders gets replaced
 		} else if (x in parser.literals) {
-			var y = parser.literals[x]
 			// double escaped wrapper characters should be decoded
-			var r, i, w, len = parser.wrappers.length
-			for (i=0; i<len; ++i) {
-			  if (i in parser.wrappers) {
-				  w = parser.wrappers[i]
-				  r = new RegExp('\\\\'+w, 'g')
-				  y = y.replace(r, w)
-			  }
+			var y = parser.literals[x]
+			for (var i=0, l=parser.wrappers.length; i<l; ++i) {
+				var w = parser.wrappers[i]
+				var r = new RegExp('\\\\'+w, 'g')
+				y = y.replace(r, w)
 			}
 			x = y
 		}
-		// if we find something else, return that
+		// if we find something else, return as plain
 		return x
 	}
 
@@ -130,10 +138,9 @@ function PLCParser(parentheses, wrappers) {
 		// before substitution split sentence to literals
 		var s = this.sanitize(tail)
 		if (s) {
-			var a = s.split(' ')
-			return a.map(this.substitute)
+			return s.split(' ').map(this.substitute)
 		}
-		return NULL;
+		return null;
 	}
 
 	parser.setMutual = function(s, level, n) {
@@ -157,9 +164,7 @@ function PLCParser(parentheses, wrappers) {
 		if (x) {
 			// only id mutual is not set,
 			// try to retrieve mutual boolean starting point
-			if (this.mutual == null) {
-				this.setMutual(x, level, n)
-			}
+			if (this.mutual == null) this.setMutual(x, level, n)
 			// add literals to root and flush tail
 			var y = this.convertLiteralToList(x)
 			if (y) {
@@ -181,37 +186,48 @@ function PLCParser(parentheses, wrappers) {
 			var char = this.literal_string.substring(i, i+1)
 			// create a new node if (
 			if (char == this.OPEN_PARENTHESES) {
+				// javascript does not support referenced variable,
+				// thus root comes back
 				root = this._sub(root, tail, level, 1)
+				// reset tail
 				tail = []
 				// now recursively get the next data
 				var l = this.recursiveParenthesesGroups(i+1, level+1)
+				// update root node
 				root.push(l[0])
+				// current character
 				i = l[1]
+				// and current level
 				level = l[2]
 			// close the node and return back to parent if )
 			} else if (char == this.CLOSE_PARENTHESES) {
+				// we are going back to upper level
 				level -= 1;
+				// javascript does not support referenced variable,
+				// thus root comes back
 				root = this._sub(root, tail, level, 0)
 				// it is important to return these information back to parent node
 				return [root, i + 1, level]
 			// we are staying on same node level, collect characters
 			} else {
+				// add char to tail for now
 				tail.push(char)
+				// increase for next char
 				i += 1
 			}
 		}
 		// when the whole input string is processed:
 		// add mutual boolean value to the root level for mutual change logic
-		if (this.mutual === null)
-			this.mutual = true
+		if (this.mutual === null) this.mutual = true
 		// finally return recursively constructed list
 		return [this.mutual, root]
 	}
 
 	parser.parse = function(input_string) {
-		// main method
+		// main method to parse the string
 		this.input_string = input_string.trim()
 		this.setLiterals(this.input_string)
+		// recursively construct the structure
 		return this.recursiveParenthesesGroups()
 	}
 
@@ -220,7 +236,7 @@ function PLCParser(parentheses, wrappers) {
 		// TODO: use class parentheses and wrappers variable
 		var result = true
 		var stack = []
-		var current, last, previous
+		var current, last, previous, open_wrapper
 		for (var i = 0, l = s.length; i < l; i++) {
 			// current character
 			current = s.substring(i, i+1)
@@ -230,9 +246,16 @@ function PLCParser(parentheses, wrappers) {
 				previous = current
 				continue;
 			}
+
 			// last stacked char
 			last = stack.last()
 
+			// we are inside a wrapper, should accept ANY character 
+			// untul the next unescaped wrapper char
+			if ((last == "'" || last == '"') && current != last) {
+				continue
+			}
+			// TODO: clean up this mess!
 			if (
 			((current == '(' || current == '[' || current == '{') && last != "'" && last != "'" ) ||
 				((current == "'" && last != "'" && last != '\\')) ||
@@ -245,6 +268,7 @@ function PLCParser(parentheses, wrappers) {
 				if (stack.length == 0) {
 					result = false
 				} else {
+					// TODO: support only passed parentheses and wrappers
 					if((current == ')' && last == '(') ||
 					   (current == ']' && last == '[') ||
 					   (current == '}' && last == '{') ||
@@ -264,22 +288,36 @@ function PLCParser(parentheses, wrappers) {
 		return result
 	}
 
+	parser.list_type = typeof([])
+	parser.string_type = typeof("")
+
 	parser.deformat = function(lst, short, first, latex) {
-		var first_operator_used = false
-		function _(current_item, mutual, negate, xor) {
+		
+		var first_operator_used = false, was_first = false
+
+		function _(current_item, mutual, negate, xor, xand) {
 			// if item is not a list, return value
-			if (typeof(current_item) !== typeof([])) {
+			if (typeof(current_item) !== parser.list_type) {
+				// boolean values
 				if ((current_item == 1 || current_item.toLowerCase() == 'true' ||
 					 current_item == 0 || current_item.toLowerCase() == 'false'))
 					return current_item
+				// normal items wrapped by the first configured wrapper char
+				// escaping wrapper char inside the string
+				var r = new RegExp(parser.wrappers[0], 'g')
+				current_item = current_item.replace(r, '\\'+parser.wrappers[0])
 				return parser.wrappers[0]+current_item+parser.wrappers[0]
 			}
 			// item is a list
 			var a = ['(']
-			// should we negate next item, was it a list or values
-			var next_item_negate = false, next_item_xor = false, was_first = false
-			var i, len = current_item.length
-			for (i=0; i<len; ++i) {
+			// should we negate next item
+			var next_item_negate = false
+			// is next item group xor
+			var next_item_xor = false
+			// is next item group xand
+			var next_item_xand = false
+			// loop all items
+			for (var i=0, l = current_item.length; i<l; ++i) {
 				var item = current_item[i]
 				// negation marker
 				if (item == -1) {
@@ -288,6 +326,10 @@ function PLCParser(parentheses, wrappers) {
 				// xor marker
 				} else if (item == -2) {
 					next_item_xor = true
+					if (i==0) was_first = true
+				// xand marker
+				} else if (item == -3) {
+					next_item_xand = true
 					if (i==0) was_first = true
 				// item or list
 				} else {
@@ -310,54 +352,75 @@ function PLCParser(parentheses, wrappers) {
 							first_operator_used = true
 						}
 					}
+					// negate works both for groups and items
 					if (next_item_negate) {
 						if (short) a.push('!')
 						else if (latex) a.push('¬')
 						else a.push('not')
 					}
-					if (next_item_xor && typeof(item) === typeof([])) {
-						if (short) a.push('^')
-						else if (latex) a.push('⊕')
-						else a.push('xor')
+					// xor and xand works for groups only
+					if (typeof(item) === parser.list_type) {
+						if (next_item_xor) {
+							if (short) a.push('^')
+							else if (latex) a.push('⊕')
+							else a.push('xor')
+						}
+						if (next_item_xand) {
+							if (short) a.push('+')
+							else if (latex) a.push('⊖')
+							else a.push('xand')
+						}
 					}
-					a.push(_(item, !mutual, next_item_negate, next_item_xor))
-					// reset negation and xor
+					// recursively add next items
+					a.push(_(item, !mutual, next_item_negate, next_item_xor, next_item_xand))
+					// reset negation, xor and xand
 					next_item_negate = false
 					next_item_xor = false
+					next_item_xand = false
 					was_first = false
 				}
 			}
 			a.push(')');
 			return a.join(' ')
 		}
+		// call sub routine to deformat structure
 		return _(lst[1], !lst[0])
 	}
 
 	parser.evaluate = function(input, table) {
-		if (typeof(input) == typeof("")) {
+		// if input is string, parse it first
+		if (typeof(input) == parser.string_type) {
 			input = this.parse(input)
 		}
-		if (typeof(input) == typeof([])) {
+		// assume input is well formed so that we can calculate the truth value
+		if (typeof(input) == parser.list_type) {
 			return this.truthValue(input[1], !input[0], table, false, false)
 		}
 		return null
 	}
 
-	parser.any = function(a) {
-		return a.some(function(x) {return x===true})
-	}
-	
-	parser.all = function(a) {
-		return a.every(function(x) {return x===true})
-	}
-	
-	parser.one = function(a) {
+	// xand, one or more, but not all
+	// single true is false, single false is false
+	parser.some = function(a) {
 		return this.any(a) && !this.all(a)
 	}
+	// or, at least one, may be all, maybe one
+	parser.any = function(a) {
+		return a.some(function(x) {return x === true})
+	}
+	// all, may be one
+	parser.all = function(a) {
+		return a.every(function(x) {return x === true})
+	}
+	// xor, only one of many
+	// single true is true, single false is true
+	parser.one = function(a) {
+		return a.lenght == 1 || a.filter(function(x) {return x === true}).length == 1
+	}
 
-	parser.truthValue = function(current_item, mutual, table, negate, xor) {
+	parser.truthValue = function(current_item, mutual, table, negate, xor, xand) {
 		// if item is not a list, check the truth value
-		if (typeof(current_item) !== typeof([])) {
+		if (typeof(current_item) !== parser.list_type) {
 			// see if translation table is given
 			if (table && current_item in table)
 				current_item = table[current_item]
@@ -371,7 +434,7 @@ function PLCParser(parentheses, wrappers) {
 		// item is a list
 		var a = []
 		// should we negate next item, was it a list or values
-		var next_item_negate = false, next_item_xor = false
+		var next_item_negate = false, next_item_xor = false, next_item_xand = false
 		var i, len = current_item.length
 		for (i=0; i<len; ++i) {
 			var item = current_item[i]
@@ -381,21 +444,31 @@ function PLCParser(parentheses, wrappers) {
 			// xor marker
 			} else if (item == -2) {
 				next_item_xor = true
+			// xand marker
+			} else if (item == -3) {
+				next_item_xand = true
 			} else {
-				a.push(this.truthValue(item, !mutual, table, next_item_negate, next_item_xor))
+				a.push(this.truthValue(item, !mutual, table, next_item_negate, next_item_xor, next_item_xand))
 				// reset negation and xor
 				next_item_negate = false
 				next_item_xor = false
+				next_item_xand = false
 			}
 		}
 		// is group AND / OR / XOR
 		// take care of negation for the list result too
 		if (xor) {
-			// if any of the values is true, but not all
+			// if only one of the values is true, but not more
 			if (negate) {
 				return !parser.one(a)
 			}
 			return parser.one(a)
+		} else if (xand) {
+			// if any of the values is true, but not all
+			if (negate) {
+				return !parser.some(a)
+			}
+			return parser.some(a)
 		} else if (mutual) {
 			// if all values are true
 			if (negate) {
@@ -410,6 +483,7 @@ function PLCParser(parentheses, wrappers) {
 			return parser.any(a)
 		}
 	}
+	// return parser dictionary with all methods and variables
 	return parser
 }
 

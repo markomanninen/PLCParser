@@ -18,14 +18,22 @@ $o = PLCPArser::parseInput($i);
 		<script src="./bower_components/jquery/dist/jquery.min.js"></script>
 		<script src="./bower_components/jquery-ui/jquery-ui.min.js"></script>
 		<script src="./bower_components/bootstrap/dist/css/bootstrap.min.js"></script>
-		<script src="./bower_components/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured"></script>
+		
+		<!--<script src="./bower_components/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>-->
+
 		<script src="./dist/PLCParser.min.js"></script>
 		<!-- jquery -->
 		<script>
 			
 			Array.prototype.last = function () {
-			  return this[this.length - 1];
-			};
+			  return this[this.length - 1]
+			}
+
+			String.prototype.toTitleCase = function () {
+			  return this.replace(/\w\S*/g, function(txt) {
+				return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+			  })
+			}
 
 			function validate(s) {
 				return PLCParser.validateInput(s)
@@ -41,7 +49,7 @@ $o = PLCPArser::parseInput($i);
 
 			function log(s) {
 				$('#result').trigger('change')
-				$('#result').html(s);
+				$('#result').text(s);
 			}
 
 			function change_deformat() {
@@ -60,40 +68,45 @@ $o = PLCPArser::parseInput($i);
 				}
 			}
 
-			var last_input = '', prev2 = '', color = ''
-			var _color = 'lightgreen'
+			var last_input = '', previous_expression = '', input_color = ''
+			var formatted_color = 'lightgreen'
+
 			function keyup() {
 				//  input value
-				var v = $(this).val().trim()
+				var input = $(this).val().trim()
 				// if last trimmed input value was different, then continue
-				if (v != last_input) {
+				if (input != last_input) {
 					// update last input
-					last_input = v
-					color = "white"
-					_color = 'lightgreen'
-					var r, o = validate(v)
-					if (!o) {
-						color = 'pink'
-						_color = 'pink'
+					last_input = input
+					input_color = "white"
+					formatted_color = 'lightblue'
+					var expression;
+					// error on validation
+					if (!validate(input)) {
+						input_color = 'pink'
+						formatted_color = 'pink'
 						$('#object').text(JSON.stringify({}))
-						r = v + " = " + 'undefined'
-						log(r)
-						prev2 = r
+						expression = input + " = " + 'undefined'
+						log(expression)
+						previous_expression = expression
 					} else {
-						var s = deformat(v,
-								$('.radio input:checked').val() == "2", 
-								$('#firstonly').prop("checked"),
-								$('.radio input:checked').val() == "3")
-						var t = JSON.parse($('#table').text())
-						var e = evaluate(v, t)
-						r = s + " = " + e || 'false'
-						if (prev2 != r) {
-							$('#object').text(JSON.stringify(PLCParser.parseInput(s)))
-							log(r)
-							prev2 = r
+						var isFirstOnly = $('#firstonly').prop("checked")
+						var isShort = $('.radio input:checked').val() == "2"
+						var isMath = $('.radio input:checked').val() == "3"
+						var formatted_input = deformat(input, isShort, isFirstOnly, isMath)
+						var truth_table = JSON.parse($('#table').text())
+						var boolean = ""+evaluate(input, truth_table) || 'false'
+						
+						expression = formatted_input + " = " + boolean
+						// if expression is new parse object and update expression
+						if (previous_expression != expression) {
+							$('#object').text(JSON.stringify(PLCParser.parseInput(formatted_input)))
+							log(expression)
+							previous_expression = expression
 						}
 					}
-					$(this).css('background-color', color)
+					// update input color
+					$(this).css('background-color', input_color)
 				}
 			}
 
@@ -103,15 +116,49 @@ $o = PLCPArser::parseInput($i);
 				$( ".radio input" ).on('change', change_deformat);
 				$( "#firstonly" ).on('change', change_deformat);
 				$( "#result" ).change(function () {
-					  $(this).effect("highlight", {color:_color}, 1000);
+					  $(this).effect("highlight", {color:formatted_color}, 1000);
 				});
 				$( "#input" ).trigger('keyup');
 			});
+			/*
+			MathJax.Hub.Config({
+			    tex2jax: {
+			      inlineMath: [["$","$"]]
+			    }
+			  });
+			var QUEUE = MathJax.Hub.queue
+		    var mathjax_formula = null
+		    var $math = $('#mathjax')
+		    var $input = $('#input')
+		    
+		    $math.text('$$'+$input.text()+'$$')
+		    $math.hide()
 
+		    QUEUE.Push(function () {
+		      mathjax_formula = MathJax.Hub.getAllJax("mathjax")[0]
+		    })
+
+		    window.UpdateMath = function (TeX) {
+			  $math.hide()
+		      QUEUE.Push(
+		          ["resetEquationNumbers", MathJax.InputJax.TeX],
+		          ["Text", mathjax_formula, "\\displaystyle{" + TeX + "}"]
+		      )
+		      $math.show()
+		    }
+		  */
 		</script>
 		<style>
 		body {
 			font-size: 160%;
+		}
+		table.table td {
+			font-size: 120%;
+			font-family: courier;
+		}
+		input#input {
+			font-size: 145%;
+			height: 45px;
 		}
 		</style>
 	</head>
@@ -119,12 +166,58 @@ $o = PLCPArser::parseInput($i);
 		<div class="container">
 
 		<div class="page-header">
-			<h1>Prepositional logic clause</h1>
+			<h1>PLCParser</h1>
+			<h4>Prepositional Logic Clause Parser for Javascript, PHP &amp; Python</h4>
+		
 		</div>
 
+		<div>
+			<h3>...</h3>
+		</div>
 
 		<div class="form-group">
 			<p>Symbols that can be used for propositional logic clauses:</p>
+			<div class="table-responsive">
+			<table class="table">
+			<tr>
+				<th></th>
+				<th>Negation</th>
+				<th>Conjunction</th>
+				<th>Exclusive or</th>
+				<th>Exclusive and</th>
+				<th>Disconjunction</th>
+				<th>Boolean</th>
+			</tr>
+			<tr>
+				<th>Word</th>
+				<td>not</td>
+				<td>and</td>
+				<td>xor</td>
+				<td>xand</td>
+				<td>or</td>
+				<td>true / false</td>
+			</tr>
+			<tr>
+				<th>Char</th>
+				<td>!</td>
+				<td>&amp;</td>
+				<td>^</td>
+				<td>+</td>
+				<td>|</td>
+				<td>1 / 0</td>
+			</tr>
+			<tr>
+				<th>Math</th>
+				<td>¬</td>
+				<td>∧</td>
+				<td>⊕</td>
+				<td>⊖</td>
+				<td>∨</td>
+				<td></td>
+			</tr>
+			</table>
+			</div>
+			<!--
 			<ul class="list-group">
 			<li class="list-group-item">and , &amp; , ∧</li>
 			<li class="list-group-item">or , | , ∨</li>
@@ -133,6 +226,7 @@ $o = PLCPArser::parseInput($i);
 			<li class="list-group-item">1 , true</li>
 			<li class="list-group-item">0 , false</li>
 			</ul>
+			-->
 		</div>
 
 		<div class="panel-group">
@@ -143,14 +237,14 @@ $o = PLCPArser::parseInput($i);
 				  <div class="panel-body">
 					<div class="form-group">
 						<label for="input">Input:</label>
-						<input type="text" id="input" value="(1 1 (1 0))" class="form-control" />
+						<input type="text" id="input" value="(1 ∧ (0 1) ⊕ (1 ¬ 1))" class="form-control" />
 					</div>
 
 					<div class="form-group">
 						<label for="table">Configuration:</label>
 						<textarea id="table" class="form-control" rows="5">{
-	"T": 1, "T": "1",
-	"F": false, "f": "false"
+	"T": 1, "t": "1", "true": true, "TRUE": "true",
+	"F": 0, "f": "0", "false": false, "FALSE": "false"
 }</textarea>
 					</div>
 					<div class="form-group">
@@ -158,7 +252,7 @@ $o = PLCPArser::parseInput($i);
 							<label><input checked="checked" name="type" type="radio" id="type1" value="1">Word</label>
 						</div>
 						<div class="radio">
-							<label><input name="type" type="radio" id="type2" value="2">Short</label>
+							<label><input name="type" type="radio" id="type2" value="2">Char</label>
 						</div>
 						<div class="radio">
 							<label><input name="type" type="radio" id="type3" value="3">Math</label>
@@ -172,16 +266,19 @@ $o = PLCPArser::parseInput($i);
 					<div>
 						<label>Formatted and evaluated expression:</label>
 					</div>
-					<pre id="result"></pre>
+					<div>
+						<pre id="result"></pre>
+						<!--<div id="mathjax">asdf</div>-->
+					</div>
 					<div>
 						<label>JSON object:</label>
 					</div>
 					<pre id="object"></pre>
 					<div>
-						<label>JSON validation schmema:</label>
+						<label>JSON validation schema:</label>
 					</div>
 					<pre id="schema"></pre>
-					<div>$$ \left( \left( 1 \land \left( 0 \lor \lnot 0 \right)  \land \oplus \left( 1 \lor 0 \right)  \right)  \right) = True $$</div>
+					<!--<div>$ \left( \left( 1 \land \left( 0 \lor \lnot 0 \right)  \land \oplus \left( 1 \lor 0 \right)  \right)  \right) = True $</div>-->
 				  </div>
 			</div>
 				<div class="panel panel-primary">
@@ -198,8 +295,5 @@ $o = PLCPArser::parseInput($i);
 	  </div>
 
 		</div><!-- container -->
-		<script type="text/javascript">
-		  MathJax.Hub.Configured()
-		</script>
 	</body>
 </html>
