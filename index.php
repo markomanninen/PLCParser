@@ -4,8 +4,18 @@ define('SERVER_ROOT', dirname($_SERVER['SCRIPT_NAME']).'/');
 
 include __DIR__.'/src/elonmedia/plcparser/php/bootstrap.php';
 
-$i = '(A (!(B or C)))';
-$o = PLCPArser::parseInput($i);
+#$default = '(A (!(B or C)))';
+$default = '(1 ∧ (0 1) ⊕ (1 ¬ 1))';
+#$default = '("\"")';
+#$default = '("\\\\")';
+
+$input = isset($_POST['input']) ? $_POST['input'] : $default;
+
+
+$v = PLCPArser::validateInput($input);
+$p = PLCPArser::parseInput($input);
+$d = PLCPArser::deformatInput($p);
+$e = PLCPArser::evaluateInput($p);
 
 ?>
 <!DOCTYPE html>
@@ -237,7 +247,7 @@ $o = PLCPArser::parseInput($i);
 				  <div class="panel-body">
 					<div class="form-group">
 						<label for="input">Input:</label>
-						<input type="text" id="input" value="(1 ∧ (0 1) ⊕ (1 ¬ 1))" class="form-control" />
+						<input type="text" id="input" value="<?=htmlentities($input)?>" class="form-control" />
 					</div>
 
 					<div class="form-group">
@@ -282,10 +292,21 @@ $o = PLCPArser::parseInput($i);
 				  </div>
 			</div>
 				<div class="panel panel-primary">
-				  <div class="panel-heading">PHP</div>
+				  <div class="panel-heading" id="php-version">PHP</div>
 				  <div class="panel-body">
-					<p><?=$i?> -> </p>
-					<pre><?=print_r($o, 1)?></pre>
+				  <form method="POST" action="./#php-version">
+				  	<div class="form-group">
+						<label for="input">Input:</label>
+						<input type="text" id="input" name="input" value="<?=htmlentities($input)?>" class="form-control" />
+					</div>
+					<div class="form-group">
+					<input type="submit" value="submit"/>
+					</div>
+					</form>
+					<p>Validated input: <b><?=$v?'true':'false'?></b></p>
+					<p>Evaluated input: <?="$d = $e"?></p>
+					<p>Parsed input:</p>
+					<?=dump($p)?>
 				  </div>
 			</div>
 				<div class="panel panel-primary">

@@ -169,7 +169,7 @@ class PLCParser
 				$this->_sub($root, $tail, $level, 1);
 				$tail = [];
 				# now recursively get the next data
-				list($sub, $i, $level) = $this->recursiveParenthesesGroups($i+1, $level+1);
+				@list($sub, $i, $level) = $this->recursiveParenthesesGroups($i+1, $level+1);
 				$root[] = $sub;
 			# close the node and return back to parent if )
 			} elseif ($char == $this->CLOSE_PARENTHESES) {
@@ -235,8 +235,69 @@ class PLCParser
 		}
 	}
 
-	public function validate($input) {
-		return NULL;
+	public function validate($input_string, $open=NULL, $close=NULL, $wrappers=NULL, $escape_char=NULL) {
+		// check parentheses and wrappers characters that they match
+		// for example (, [, {
+		$open = $open ? $open : $this->OPEN_PARENTHESES;
+		// for example: }, ], )
+		$close = $close ? $close : $this->CLOSE_PARENTHESES;
+		// multiple wrapper chars accepted, for example ['"', "'", "´"]
+		$wrappers = $wrappers ? $wrappers : $this->wrappers;
+		// is is possible to pass a different escape char, but it is probably
+		// not a good idea because many of the string processors use the same
+		$escape_char = $escape_char ? $open : '\\';
+
+		$stack = array();
+		$previous = NULL;
+
+		// loop over all characters in a string
+		$chars = preg_split('/(?<!^)(?!$)/u', $input_string);
+		foreach ($chars as $current) {
+			// if previous character was escape character, then 
+			// swap it with the current one and continue to the next char
+			if ($previous == $escape_char) {
+				// see if current character is escape char, then there are
+				// two of them in row and we should reset previous marker
+				if ($current == $escape_char) $previous = NULL;
+				else $previous = $current;
+				continue;
+			}
+			// last stacked char. not that this differs from the previous value which
+			// is the previous char from string. last is the last char from stack
+			$last = @array_slice($stack, -1)[0];
+			// if we are inside a wrapper accept ANY character 
+			// until the next unescaped wrapper char occurs
+			if (in_array($last, $wrappers) && $current != $last) {
+				// swap the current so that we can escape wrapper inside wrappers: "\""
+				$previous = $current;
+				continue;
+			}
+			// push open parenthesis or wrapper to the stack
+			if ($current == $open ||
+				(in_array($current, $wrappers) && $current != $last)) {
+				$stack[] = $current;
+			// prepare to pop last parenthesis or wrapper
+			} else if ($current == $close || 
+				 	   in_array($current, $wrappers)) {
+				// if there is nothing on stack, should already return false
+				if (count($stack) == 0) {
+					return FALSE;
+				} else {
+					// if we encounter wrapper char take the last wrapper char out from stack
+					if (in_array($last, $wrappers) ||
+						// or if the last char was open and current close parenthsis
+						($last == $open && $current == $close)) {
+						array_pop($stack);
+					} else {
+						return FALSE;
+					}
+				}
+			}
+			// update previous char
+			$previous = $current;
+		}
+		// if there is something on stack then no closing char was found
+		return count($stack) == 0;
 	}
 
 	static function validateInput($input){
