@@ -51,7 +51,7 @@ script:
   #- mocha ./test/js/integration-test.coffee --compilers coffee:coffee-script/register --timeout 30000
   #- mocha ./test/js/totodoo.coffee --compilers coffee:coffee-script/register --timeout 30000
   #- mocha ./test/js/test.js --timeout 30000
-  #- python -m unittest discover -s ./test/python -p "test.py"
+  - python -m unittest discover -v -s ./test/python -p "test.py"
 
 matrix:
   fast_finish: true
@@ -60,10 +60,11 @@ notifications:
   on_success: never
   on_failure: always
 
-deploy:
-  provider: heroku
-  api_key:
-    - secure: "P0Jp5qyzvxJ9n67eMd8mwmyN6cihu97OIwpF4DLaM/yf1OPMaVzb72e3wpucUb4ZprlZ/bHa8fnGNYhHLcyFzkrjK8vWh96BnEsoJQYm37ex69CYMjrry1wn1op4rF3r3hLKTZ18/YiBZ06XHx+zmHq4TGQiBFEILEsltulrVpUGELywHDdlj0yHu0Bhw1Lt2g5K8W8i6BisuVgnOHvEe8z2q5dOiKDREvVYxmS6tGNdr4FpIy7FFxBkvH7uFxeF15C/AoHjo0tu6FgYLeGcdwIqKXxdcTqhERomw8jLHaatCkX7VIvE2xaXuvtThx/C3nWuC5g3e+oG9k/+qvi/f2+Si91lzHT1+bOoC58shj6A84pIK1gpXSHbS+VshzxficCmAan9pyWsP75vNTK6sFTdKBwbJ7nae/Zv2JlXv6/SB6VQa6wf7r7fgIseohZQZBHzi1ukLqGVynNybG7wwHjaSBM3BKxZxM2X6+XOZYIbep9G3HrdshtNHj6c2u7lZym85jAqcZKZYvocRs8o+nux6D5/ZTlapRV7zyMEJYKvkiCfe4WTF5qODC6ghKTB2B63tG+TSMXAnQsjRZRsS4+9bRKPGJ5e2KWRZhD+7316z7rRZvljqVGEVk27gxyrHem1YvVz1u79/H6mtlDdZ7SFfKl4HqIr2GrzcfIEVkc="
-  app: plcparser
-  on:
-    repo: markomanninen/plcparser
+# heroku probably does not need this because CI is configured on web ui...
+#deploy:
+#  provider: heroku
+#  api_key:
+#    - secure: "P0Jp5qyzvxJ9n67eMd8mwmyN6cihu97OIwpF4DLaM/yf1OPMaVzb72e3wpucUb4ZprlZ/bHa8fnGNYhHLcyFzkrjK8vWh96BnEsoJQYm37ex69CYMjrry1wn1op4rF3r3hLKTZ18/YiBZ06XHx+zmHq4TGQiBFEILEsltulrVpUGELywHDdlj0yHu0Bhw1Lt2g5K8W8i6BisuVgnOHvEe8z2q5dOiKDREvVYxmS6tGNdr4FpIy7FFxBkvH7uFxeF15C/AoHjo0tu6FgYLeGcdwIqKXxdcTqhERomw8jLHaatCkX7VIvE2xaXuvtThx/C3nWuC5g3e+oG9k/+qvi/f2+Si91lzHT1+bOoC58shj6A84pIK1gpXSHbS+VshzxficCmAan9pyWsP75vNTK6sFTdKBwbJ7nae/Zv2JlXv6/SB6VQa6wf7r7fgIseohZQZBHzi1ukLqGVynNybG7wwHjaSBM3BKxZxM2X6+XOZYIbep9G3HrdshtNHj6c2u7lZym85jAqcZKZYvocRs8o+nux6D5/ZTlapRV7zyMEJYKvkiCfe4WTF5qODC6ghKTB2B63tG+TSMXAnQsjRZRsS4+9bRKPGJ5e2KWRZhD+7316z7rRZvljqVGEVk27gxyrHem1YvVz1u79/H6mtlDdZ7SFfKl4HqIr2GrzcfIEVkc="
+#  app: plcparser
+#  on:
+#    repo: markomanninen/plcparser
