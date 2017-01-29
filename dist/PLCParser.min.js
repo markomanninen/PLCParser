@@ -231,61 +231,70 @@ function PLCParser(parentheses, wrappers) {
 		return this.recursiveParenthesesGroups()
 	}
 
-	parser.validate = function validate(s) {
+	parser.validate = function validate(input_string, open, close, wrappers, escape_char) {
 		// check parentheses and wrappers characters that they match
-		// TODO: use class parentheses and wrappers variable
-		var result = true
+		// for example (, [, {
+		open = open || parser.OPEN_PARENTHESES
+		// for example: }, ], )
+		close = close || parser.CLOSE_PARENTHESES
+		// multiple wrapper chars accepted, for example ['"', "'", "´"]
+		wrappers = wrappers || parser.wrappers
+		// is is possible to pass a different escape char, but it is probably
+		// not a good idea because many of the string processors use the same
+		escape_char = escape_char || '\\'
+
 		var stack = []
-		var current, last, previous, open_wrapper
-		for (var i = 0, l = s.length; i < l; i++) {
+		var current, last, previous
+
+		// loop over all characters in a string
+		for (var i = 0, l = input_string.length; i < l; i++) {
 			// current character
-			current = s.substring(i, i+1)
-			// if clas character was escape character, then 
+			current = input_string.substring(i, i+1)
+			// if previous character was escape character, then 
 			// swap it with the current one and continue to the next char
-			if (previous == '\\') {
-				previous = current
-				continue;
-			}
-
-			// last stacked char
-			last = stack.last()
-
-			// we are inside a wrapper, should accept ANY character 
-			// untul the next unescaped wrapper char
-			if ((last == "'" || last == '"') && current != last) {
+			if (previous == escape_char) {
+				// see if current character is escape char, then there are
+				// two of them in row and we should reset previous marker
+				if (current == escape_char) previous = null
+				else previous = current
 				continue
 			}
-			// TODO: clean up this mess!
-			if (
-			((current == '(' || current == '[' || current == '{') && last != "'" && last != "'" ) ||
-				((current == "'" && last != "'" && last != '\\')) ||
-				 (current == '"' && last != '"' && last != '\\')) {
-				stack.push(current);
-			} else if(
-			((current == ')' || current == ']' || current == '}' ) && last != "'" && last != '"') || 
-											  current == "'" ||
-											  current == '"') {
+			// last stacked char. not that this differs from the previous value which
+			// is the previous char from string. last is the last char from stack
+			last = stack.last()
+			// if we are inside a wrapper accept ANY character 
+			// until the next unescaped wrapper char occurs
+			if (wrappers.indexOf(last) > -1 && current != last) {
+				// swap the current so that we can escape wrapper inside wrappers: "\""
+				previous = current
+				continue
+			}
+			// push open parenthesis or wrapper to the stack
+			if (current == open ||
+				(wrappers.indexOf(current) > -1 && current != last)) {
+				stack.push(current)
+			// prepare to pop last parenthesis or wrapper
+			} else if (current == close || 
+				 	   wrappers.indexOf(current) > -1) {
+				// if there is nothing on stack, should already return false
 				if (stack.length == 0) {
-					result = false
+					return false
 				} else {
-					// TODO: support only passed parentheses and wrappers
-					if((current == ')' && last == '(') ||
-					   (current == ']' && last == '[') ||
-					   (current == '}' && last == '{') ||
-					   (current == '"' && last == '"') ||
-					   (current == "'" && last == "'")) {
+					// if we encounter wrapper char take the last wrapper char out from stack
+					if ((wrappers.indexOf(last) > -1) ||
+						// or if the last char was open and current close parenthsis
+						(last == open && current == close)) {
 						stack.pop()
 					} else {
-						result = false
+						return false
 					}
 				}
 			}
 			// update previous char
 			previous = current
 		}
-		// no closing char found
-		if (stack.length > 0) result = false;
-		return result
+		// if there is something on stack then no closing char was found
+		return stack.length == 0
 	}
 
 	parser.list_type = typeof([])
@@ -309,7 +318,7 @@ function PLCParser(parentheses, wrappers) {
 				return parser.wrappers[0]+current_item+parser.wrappers[0]
 			}
 			// item is a list
-			var a = ['(']
+			var a = [parser.OPEN_PARENTHESES]
 			// should we negate next item
 			var next_item_negate = false
 			// is next item group xor
@@ -380,7 +389,7 @@ function PLCParser(parentheses, wrappers) {
 					was_first = false
 				}
 			}
-			a.push(')');
+			a.push(parser.CLOSE_PARENTHESES);
 			return a.join(' ')
 		}
 		// call sub routine to deformat structure
@@ -522,6 +531,25 @@ PLCParser.validateInput = function(s) {
 		return null
 	}
 }
+
+/*
+
+{
+    "not": {
+        "anyOf": [
+        	true,
+			{
+				"allOf": [
+					{
+						"oneOf": []
+					}
+				]
+			}
+        ]
+    }
+}
+
+*/
 
 // for node environment require call
 if ( typeof module !== 'undefined' ) {
