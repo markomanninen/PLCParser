@@ -19,8 +19,7 @@ class PLCParserTestCase(unittest.TestCase):
 
 		self.assertEqual(parseInput("( A B )"), (True, [['A', 'B']]), 'plain A B')
 		self.assertEqual(parseInput("( 'A' 'B' )"), (True, [['A', 'B']]), 'quoted A B')
-		#self.assertEqual(parseInput("( 'A' and 'B' )"), (True, [['A', 'B']]), 'quoted A B with and keyword')
-
+		self.assertEqual(parseInput("( 'A' and 'B' )"), (True, [['A', 'B']]), 'quoted A B with and keyword')
 		self.assertEqual(parseInput("( 'A' & 'B' )"), (True, [['A', 'B']]), 'quoted A B with & char')
 		#self.assertEqual(parseInput("( 'A' ∧ 'B' )"), (True, [['A', 'B']]), 'quoted A B with ∧ math symbol')
 
