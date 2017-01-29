@@ -16,10 +16,14 @@ class PLCParserTestCase(unittest.TestCase):
 		                  (True, [['and', 'or', 'not', 'xor', 'xand', '&', '|', '!', '^', '+', '⊕', '∨', '⊖', '∧', '¬']]), 'single quoted reserved words, chars and math symbols')
 		self.assertEqual(parseInput('( "and" "or" "not" "xor" "xand" "&" "|" "!" "^" "+" "⊕" "∨" "⊖" "∧" "¬")'), \
 		                  (True, [['and', 'or', 'not', 'xor', 'xand', '&', '|', '!', '^', '+', '⊕', '∨', '⊖', '∧', '¬']]), 'double quoted reserved words, chars and math symbols')
-
+		
+		print(parseInput("( A B )"))
 		self.assertEqual(parseInput("( A B )"), (True, [['A', 'B']]), 'plain A B')
+		print(parseInput("( 'A' 'B' )"))
 		self.assertEqual(parseInput("( 'A' 'B' )"), (True, [['A', 'B']]), 'quoted A B')
+		print(parseInput("( 'A' and 'B' )"))
 		self.assertEqual(parseInput("( 'A' and 'B' )"), (True, [['A', 'B']]), 'quoted A B with and keyword')
+
 		self.assertEqual(parseInput("( 'A' & 'B' )"), (True, [['A', 'B']]), 'quoted A B with & char')
 		#self.assertEqual(parseInput("( 'A' ∧ 'B' )"), (True, [['A', 'B']]), 'quoted A B with ∧ math symbol')
 
