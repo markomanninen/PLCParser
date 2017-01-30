@@ -65,11 +65,11 @@ class PLCParserTestCase(unittest.TestCase):
 		self.assertEqual(parseInput('( ! ( ! a ! b ) )'), (True, [[-1, [-1, 'a', -1, 'b']]]), '')
 		self.assertEqual(parseInput('( not ( not a not b ) )'), (True, [[-1, [-1, 'a', -1, 'b']]]), '')
 
-		c = PLCParser(parentheses=['[', ']'], wrappers=['´'])
+		c = PLCParser(parentheses=['[', ']'], wrappers=[u'´'])
 
-		self.assertEqual(c.parse("(´A´)"), (True, []), 'wrong parentheses')
+		self.assertEqual(c.parse(u"(´A´)"), (True, []), 'wrong parentheses')
 		self.assertEqual(c.parse("['A']"), (True, [["'A'"]]), 'wrong wrappers')
-		self.assertEqual(c.parse("[´A´]"), (True, [['A']]), 'right parentheses and wrappers')
+		self.assertEqual(c.parse(u"[´A´]"), (True, [[u'A']]), 'right parentheses and wrappers')
 
 if __name__ == '__main__':
     unittest.main()
