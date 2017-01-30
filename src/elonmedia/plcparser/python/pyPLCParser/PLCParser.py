@@ -3,7 +3,7 @@ import re
 
 """
 
-Prepositional logic clause parser
+Prepositional Logic Clause Parser
 
 Author: Marko Manninen <elonmedia@gmail.com>
 Date: 22.1.2017
@@ -14,23 +14,30 @@ class PLCParser():
     
     # normalize string to standard format i.e.
     # separate operators from other strings and add spaces
-    # for keywords: xor or and not
+    # for keywords: xor or xand and not
     PREPROCESS_OPERATORS1 = re.compile(
-            r'([\)])[\s]*(xor|or|and|not)[\s]+|'+\
-            r'[\s]+(xor|or|and|not)[\s]*([\(])|'+\
-            r'[\s]+(xor|or|and|not)[\s]+'
+            r'([\)])[\s]*(xor|or|xand|and|not)[\s]+|'+\
+            r'[\s]+(xor|or|xand|and|not)[\s]*([\(])|'+\
+            r'[\s]+(xor|or|xand|and|not)[\s]+'
             , re.IGNORECASE)
-    # for special chars: ^ | & !
+    # for special chars: ^ | + & !
     PREPROCESS_OPERATORS2 = re.compile(
-            r'([\)])[\s]*(\^|\||\&|\!)[\s]+|'+\
-            r'[\s]+(\^|\||\&|\!)[\s]*([\(])|'+\
-            r'[\s]+(\^|\||\&|\!)[\s]+')
+            r'([\)])[\s]*(\^|\||\+|\&|\!)[\s]+|'+\
+            r'[\s]+(\^|\||\+|\&|\!)[\s]*([\(])|'+\
+            r'[\s]+(\^|\||\+|\&|\!)[\s]+')
+    # for math chars: ⊖ ⊕ ∨ ∧ ¬
+    PREPROCESS_OPERATORS3 = re.compile(
+            r'([\)])[\s]*(⊕|∨|⊖|∧|¬)[\s]+|'+\
+            r'[\s]+(⊕|∨|⊖|∧|¬)[\s]*([\(])|'+\
+            r'[\s]+(⊕|∨|⊖|∧|¬)[\s]+')
     # get operators from start, middle and end of the string
-    OPERATORS = re.compile(r'(^|\s+)(or|and|\||\&)(\s+|$)', re.IGNORECASE)
+    OPERATORS = re.compile(r'(^|\s+)(or|and|\||\&|∨|∧)(\s+|$)', re.IGNORECASE)
     # find xor operator
-    XOR = re.compile(r'(\^|xor)', re.IGNORECASE)
+    XOR = re.compile(r'(\^|xor|⊕)', re.IGNORECASE)
+    # find xand operator, meaningful in groups only
+    XAND = re.compile(r'(\+|xand|⊖)', re.IGNORECASE)
     # find not operator
-    NOT = re.compile(r'(\!|not)', re.IGNORECASE)
+    NOT = re.compile(r'(\!|not|¬)', re.IGNORECASE)
 
     def __init__(self, parentheses = ['(', ')'], wrappers = ["'", '"']):
         """ constructor """
@@ -65,8 +72,9 @@ class PLCParser():
     # and to decide what is the mutual starting point for boolean logic on the first node level
     def sanitize(self, s):
         # make sentence well formatted: "(A and(B)   or C)" -> "(A and (B) or C)"
-        s = self.PREPROCESS_OPERATORS1.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
-        s = self.PREPROCESS_OPERATORS2.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
+        #s = self.PREPROCESS_OPERATORS1.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
+        #s = self.PREPROCESS_OPERATORS2.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
+        #s = self.PREPROCESS_OPERATORS3.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
         # replace operators with empty space
         s = self.OPERATORS.sub(' ', s)
         # prepare to remove exclamation mark, that is used for NOT boolean logic tree
@@ -82,11 +90,14 @@ class PLCParser():
     def convertLiteralToList(self, tail):
         def substitute(x):
             # not operator becomes -1
-            if x.strip() == "!" or x.strip() == "not":
+            if x.strip() == "!" or x.strip() == "not" or x.strip() == "¬":
                 return -1
-            # xor operator becomes 0
-            elif x.strip() == "^" or x.strip() == "xor":
+            # xor operator becomes -2
+            elif x.strip() == "^" or x.strip() == "xor" or x.strip() == "∨":
                 return -2
+            # xor operator becomes -3
+            elif x.strip() == "+" or x.strip() == "xand" or x.strip() == "∧":
+                return -3
             # literal placeholders gets replaced
             elif x in self.literals:
                 y = self.literals[x]
@@ -111,7 +122,7 @@ class PLCParser():
             o = self.OPERATORS.search(s)
             if o:
                 t = o.group().lower().strip()
-                self.mutual = True if t == "and" or t == "&" else False
+                self.mutual = True if t == "and" or t == "&" or t == "∧" else False
         
     def recursiveParenthesesGroups(self, i=0, level=0):
         # sub routine for open and close parentheses
@@ -173,13 +184,16 @@ class PLCParser():
             return None
 
     @staticmethod
-    def evaluateInput(input_string, table={}):
+    def validateInput(s):
         """ bypass object construct """
         c = PLCParser()
         try:
-            return c.evaluate(input_string, table)
+            return c.validate(s)
         except:
             return None
+    
+    def validate(self, s):
+        pass
 
     @staticmethod
     def deformatInput(lst, short=False, firstonly=False, latex=False):
@@ -193,6 +207,15 @@ class PLCParser():
     def deFormat(self, lst, short=False, firstonly=False, latex=False):
         pass
 
+    @staticmethod
+    def evaluateInput(input_string, table={}):
+        """ bypass object construct """
+        c = PLCParser()
+        try:
+            return c.evaluate(input_string, table)
+        except:
+            return None
+
     def evaluate(self, i, table={}):
         if type(i) == str:
             i = self.parse(i)
@@ -200,7 +223,7 @@ class PLCParser():
             return self.truth_value(i[1], not i[0], table)
         return None
 
-    def truth_value(self, current_item, mutual=True, table=None, negate=False, xor=False):
+    def truth_value(self, current_item, mutual=True, table=None, negate=False, xor=False, xand=False):
         # if item is not a list, check the truth value
         if not isinstance(current_item, list):
             if table and current_item in table:
@@ -211,7 +234,7 @@ class PLCParser():
         # item is a list
         a = []
         # should we negate next item, was it a list or values
-        next_item_negate, next_item_xor = False, False
+        next_item_negate, next_item_xor, next_item_xand = False, False, False
         for item in current_item:
             # negation marker
             if item == -1:
@@ -219,15 +242,22 @@ class PLCParser():
             # xor marker
             elif item == -2:
                 next_item_xor = True
+            # xand marker
+            elif item == -3:
+                next_item_xand = True
             else:
-                a.append(self.truth_value(item, not mutual, table, next_item_negate, next_item_xor))
+                a.append(self.truth_value(item, not mutual, table, next_item_negate, next_item_xor, next_item_xand))
                 # reset negation and xor
                 next_item_negate = False
                 next_item_xor = False
+                next_item_xand = False
         # is group AND / OR / XOR
         # take care of negation for the list result too
         if xor:
-            # if any of the values is true, but not all
+            # if one of the values is true, but not more
+            return not (any(a) and not all(a)) if negate else any(a) and not all(a)
+        elif xand:
+            # if any of the values are true, but not all
             return not (any(a) and not all(a)) if negate else any(a) and not all(a)
         elif mutual:
             # if all values are true
@@ -239,3 +269,4 @@ class PLCParser():
 parseInput = PLCParser.parseInput
 evaluateInput = PLCParser.evaluateInput
 deformatInput = PLCParser.deformatInput
+validateInput = PLCParser.validateInput
