@@ -66,7 +66,7 @@ class PLCParserTestCase(unittest.TestCase):
 		self.assertEqual(parseInput('( ! ( ! a ! b ) )'), (True, [[-1, [-1, 'a', -1, 'b']]]), '')
 		self.assertEqual(parseInput('( not ( not a not b ) )'), (True, [[-1, [-1, 'a', -1, 'b']]]), '')
 
-		if sys.system_info < (3,0):
+		if sys.version_info < (3,0):
 			c = PLCParser(parentheses=['[', ']'], wrappers=[unicode('´', 'utf-8')])
 			self.assertEqual(c.parse(unicode('(´A´)', 'utf-8')), (True, []), 'wrong parentheses')
 			self.assertEqual(c.parse(unicode('[´A´]', 'utf-8')), (True, [['A']]), 'right parentheses and wrappers')
