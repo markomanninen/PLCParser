@@ -403,7 +403,7 @@ function PLCParser(parentheses, wrappers) {
 		}
 		// assume input is well formed so that we can calculate the truth value
 		if (typeof(input) == parser.list_type) {
-			return this.truthValue(input[1], !input[0], table, false, false)
+			return this.truthValue(input[1], !input[0], table, false, false, false)
 		}
 		return null
 	}
