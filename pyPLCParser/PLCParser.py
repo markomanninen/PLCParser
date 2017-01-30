@@ -16,21 +16,21 @@ class PLCParser():
     # separate operators from other strings and add spaces
     # for keywords: xor or and not
     PREPROCESS_OPERATORS1 = re.compile(
-            r'([\)])[\s]*(xor|or|and|not)[\s]+|'+\
+            r'/([\)])[\s]*(xor|or|and|not)[\s]+|'+\
             r'[\s]+(xor|or|and|not)[\s]*([\(])|'+\
-            r'[\s]+(xor|or|and|not)[\s]+'
+            r'[\s]+(xor|or|and|not)[\s]+/'
             , re.IGNORECASE)
     # for special chars: ^ | & !
     PREPROCESS_OPERATORS2 = re.compile(
-            r'([\)])[\s]*(\^|\||\&|\!)[\s]+|'+\
+            r'/([\)])[\s]*(\^|\||\&|\!)[\s]+|'+\
             r'[\s]+(\^|\||\&|\!)[\s]*([\(])|'+\
-            r'[\s]+(\^|\||\&|\!)[\s]+')
+            r'[\s]+(\^|\||\&|\!)[\s]+/')
     # get operators from start, middle and end of the string
-    OPERATORS = re.compile(r'(^|\s+)(or|and|\||\&)(\s+|$)', re.IGNORECASE)
+    OPERATORS = re.compile(r'/(^|\s+)(or|and|\||\&)(\s+|$)/', re.IGNORECASE)
     # find xor operator
-    XOR = re.compile(r'(\^|xor)', re.IGNORECASE)
+    XOR = re.compile(r'/(\^|xor)/', re.IGNORECASE)
     # find not operator
-    NOT = re.compile(r'(\!|not)', re.IGNORECASE)
+    NOT = re.compile(r'/(\!|not)/', re.IGNORECASE)
 
     def __init__(self, parentheses = ['(', ')'], wrappers = ["'", '"']):
         """ constructor """
