@@ -107,7 +107,7 @@ class PLCParserTestCase(unittest.TestCase):
 		assert evaluateInput('(0 | 1)') == True
 		assert evaluateInput('(0 & 1)') == False
 		# and or math symbols
-		assert evaluateInput('(0 ∧ 1)') == True
+		assert evaluateInput('(0 ∨ 1)') == True
 		assert evaluateInput('(0 ∧ 1)') == False
 		# XOR single
 		assert evaluateInput('(^(1))') == False
