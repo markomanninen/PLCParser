@@ -51,7 +51,7 @@ script:
   #- mocha ./test/js/integration-test.coffee --compilers coffee:coffee-script/register --timeout 30000
   #- mocha ./test/js/totodoo.coffee --compilers coffee:coffee-script/register --timeout 30000
   #- mocha ./test/js/test.js --timeout 30000
-  #- python -m unittest discover -v -s ./test/python -p "test.py"
+  - python3 -m unittest discover -v -s ./test/python -p "test.py"
 
 matrix:
   fast_finish: true
