@@ -7,7 +7,6 @@ require_once __DIR__."/../../../../vendor/autoload.php";
 
 require_once "PLCParser.php";
 
-
 ////////////////////////////////////////////////////////
 // Function:         dump
 // Inspired from:     PHP.net Contributions
@@ -26,10 +25,8 @@ function dump(&$var, $info = FALSE) {
 	foreach($vals as $key => $val) if($val === $new) $vname = $key;
 	$var = $old;
 
-	echo "<pre style='margin: 0px 0px 10px 0px; display: block; background: white; color: black; font-family: Verdana; border: 1px solid #cccccc; padding: 5px;'>";
-	if($info != FALSE) echo "<b style='color: red;'>$info:</b><br>";
+	if ($info != FALSE) echo "<b style='color: red;'>$info:</b><br>";
 	do_dump($var, '$'.$vname);
-	echo "</pre>";
 }
 
 ////////////////////////////////////////////////////////
