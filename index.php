@@ -5,31 +5,39 @@ define('SERVER_ROOT', dirname($_SERVER['SCRIPT_NAME']).'/');
 include __DIR__.'/src/elonmedia/plcparser/php/bootstrap.php';
 
 #$default = '(A (!(B or C)))';
-$default = '(1 ∧ (0 1) ⊕ (1 ¬ 1))';
+$default_input = '(1 ∧ (0 1) ⊕ (1 ¬ 1))';
+$default_table_str = '{
+	"T": 1, "t": "1", "true": true, "TRUE": "true",
+	"F": 0, "f": "0", "false": false, "FALSE": "false"
+}';
 #$default = '("\"")';
 #$default = '("\\\\")';
 
-$input = isset($_POST['input']) ? $_POST['input'] : $default;
+$input = isset($_POST['input']) ? $_POST['input'] : $default_input;
+$firstonly = isset($_POST['firstonly']);
+$type = isset($_POST['type']) ? $_POST['type'] : 1;
+$table_str = isset($_POST['table']) ? $_POST['table'] : $default_table_str;
+# array format with TRUE
+$table = json_decode($table_str, TRUE);
 
-
-$v = PLCPArser::validateInput($input);
-$p = PLCPArser::parseInput($input);
-$d = PLCPArser::deformatInput($p);
-$e = PLCPArser::evaluateInput($p);
+$v = PLCParser::validateInput($input);
+$p = PLCParser::parseInput($input);
+$d = PLCParser::deformatInput($p, $type==2, $firstonly, $type==3);
+$e = PLCParser::evaluateInput($p, $table);
 
 ?>
 <!DOCTYPE html>
 <html>
 	<head lang="en">
 		<meta charset="UTF-8">
-		<title>PLCParser - Prepositional logic clause parser (Python, PHP, Javascript)</title>
+		<title>PLCParser - Prepositional Logic Clause Parser (Python, PHP, Javascript)</title>
 		<link rel="stylesheet" href="./src/elonmedia/plcparser/css/style.css" />
 		<link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap.min.css" />
 		<script src="./bower_components/jquery/dist/jquery.min.js"></script>
 		<script src="./bower_components/jquery-ui/jquery-ui.min.js"></script>
 		<script src="./bower_components/bootstrap/dist/css/bootstrap.min.js"></script>
 		
-		<!--<script src="./bower_components/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>-->
+		<script src="./bower_components/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
 		<script src="./dist/PLCParser.min.js"></script>
 		<!-- jquery -->
@@ -130,12 +138,13 @@ $e = PLCPArser::evaluateInput($p);
 				});
 				$( "#input" ).trigger('keyup');
 			});
-			/*
+			
 			MathJax.Hub.Config({
-			    tex2jax: {
-			      inlineMath: [["$","$"]]
-			    }
-			  });
+				tex2jax: {
+					inlineMath: [["$","$"]]
+				}
+			});
+			/*
 			var QUEUE = MathJax.Hub.queue
 		    var mathjax_formula = null
 		    var $math = $('#mathjax')
@@ -178,7 +187,6 @@ $e = PLCPArser::evaluateInput($p);
 		<div class="page-header">
 			<h1>PLCParser</h1>
 			<h4>Prepositional Logic Clause Parser for Javascript, PHP &amp; Python</h4>
-		
 		</div>
 
 		<div>
@@ -218,11 +226,11 @@ $e = PLCPArser::evaluateInput($p);
 			</tr>
 			<tr>
 				<th>Math</th>
-				<td>¬</td>
-				<td>∧</td>
-				<td>⊕</td>
-				<td>⊖</td>
-				<td>∨</td>
+				<td>$\lnot$</td>
+				<td>$\land$</td>
+				<td>$\oplus$</td>
+				<td>$\ominus$</td>
+				<td>$\lor$</td>
 				<td></td>
 			</tr>
 			</table>
@@ -252,61 +260,92 @@ $e = PLCPArser::evaluateInput($p);
 
 					<div class="form-group">
 						<label for="table">Configuration:</label>
-						<textarea id="table" class="form-control" rows="5">{
-	"T": 1, "t": "1", "true": true, "TRUE": "true",
-	"F": 0, "f": "0", "false": false, "FALSE": "false"
-}</textarea>
+						<textarea id="table" class="form-control" rows="5"><?=$table_str?></textarea>
 					</div>
-					<div class="form-group">
-						<div class="radio">
-							<label><input checked="checked" name="type" type="radio" id="type1" value="1">Word</label>
-						</div>
-						<div class="radio">
-							<label><input name="type" type="radio" id="type2" value="2">Char</label>
-						</div>
-						<div class="radio">
-							<label><input name="type" type="radio" id="type3" value="3">Math</label>
-						</div>
+
+					<div class="controls-row">
+						<label class="radio-inline">
+							<input <?=($type==1?'checked="checked" ':'')?> name="type" type="radio" id="type1" value="1">Word</label>
+						<label class="radio-inline">
+							<input <?=($type==2?'checked="checked" ':'')?> name="type" type="radio" id="type2" value="2">Char</label>
+						<label class="radio-inline">
+							<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" id="type3" value="3">Math</label>
 					</div>
+
 					<div class="form-group">
 						<div class="checkbox">
-							<label><input type="checkbox" id="firstonly" value="1">First only</label>
+							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" id="firstonly" value="1">First only</label>
 						</div>
 					</div>
+
 					<div>
 						<label>Formatted and evaluated expression:</label>
 					</div>
+
 					<div>
 						<pre id="result"></pre>
 						<!--<div id="mathjax">asdf</div>-->
 					</div>
+
 					<div>
 						<label>JSON object:</label>
 					</div>
+
 					<pre id="object"></pre>
+					
 					<div>
 						<label>JSON validation schema:</label>
 					</div>
+
 					<pre id="schema"></pre>
 					<!--<div>$ \left( \left( 1 \land \left( 0 \lor \lnot 0 \right)  \land \oplus \left( 1 \lor 0 \right)  \right)  \right) = True $</div>-->
 				  </div>
 			</div>
-				<div class="panel panel-primary">
+			<div class="panel panel-primary">
+				  
 				  <div class="panel-heading" id="php-version">PHP</div>
+				  
 				  <div class="panel-body">
+				  
 				  <form method="POST" action="./#php-version">
+
 				  	<div class="form-group">
 						<label for="input">Input:</label>
 						<input type="text" id="input" name="input" value="<?=htmlentities($input)?>" class="form-control" />
 					</div>
+
 					<div class="form-group">
-					<input type="submit" value="submit"/>
+						<label for="table">Configuration:</label>
+						<textarea id="table" class="form-control" name="table" rows="5"><?=$table_str?></textarea>
 					</div>
+
+					<div class="controls-row">
+							<label class="radio-inline control-label">
+								<input <?=($type==1?'checked="checked" ':'')?> name="type" type="radio" id="type1" value="1">Word</label>
+						
+							<label class="radio-inline control-label">
+								<input <?=($type==2?'checked="checked" ':'')?> name="type" type="radio" id="type2" value="2">Char</label>
+						
+							<label class="radio-inline control-label">
+								<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" id="type3" value="3">Math</label>
+					</div>
+
+					<div class="form-group">
+						<div class="checkbox">
+							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" id="firstonly" name="firstonly" value="1" />First only</label>
+						</div>
+					</div>
+				
+					<div class="form-group">
+						<input type="submit" value="submit" class="btn btn-primary"/>
+					</div>
+
 					</form>
+
 					<p>Validated input: <b><?=$v?'true':'false'?></b></p>
-					<p>Evaluated input: <?="$d = $e"?></p>
+					<p>Evaluated input: <?="$d = ".($e?'true':'false')?></p>
 					<p>Parsed input:</p>
-					<?=dump($p)?>
+					<pre><?=dump($p)?></pre>
 				  </div>
 			</div>
 				<div class="panel panel-primary">

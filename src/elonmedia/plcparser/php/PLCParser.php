@@ -75,9 +75,9 @@ class PLCParser
 	# starting point for boolean logic on the first node level
 	public function sanitize($s) {
         # make sentence well formatted: "(A and(B)   or C)" -> "(A and (B) or C)"
-        $s = preg_replace($this->PREPROCESS_OPERATORS1, '$1 $2$5$3 $4', $s);
-        $s = preg_replace($this->PREPROCESS_OPERATORS2, '$1 $2$5$3 $4', $s);
-        $s = preg_replace($this->PREPROCESS_OPERATORS3, '$1 $2$5$3 $4', $s);
+        #$s = preg_replace($this->PREPROCESS_OPERATORS1, '$1 $2$5$3 $4', $s);
+        #$s = preg_replace($this->PREPROCESS_OPERATORS2, '$1 $2$5$3 $4', $s);
+        #$s = preg_replace($this->PREPROCESS_OPERATORS3, '$1 $2$5$3 $4', $s);
         # replace operators with empty space
         $s = preg_replace($this->OPERATORS, ' ', $s);
         # prepare to remove exclamation mark, that is used for NOT boolean logic tree
@@ -88,7 +88,8 @@ class PLCParser
         $s = preg_replace($this->XAND, ' $1 ', $s);
         # remove extra double, triple and other longs whitespaces
         # only single spaces between literals are left
-        return implode(' ', array_filter(explode(' ', $s)));
+        # array filter needs to have strlen to keep 0 numerals!
+        return implode(' ', array_filter(explode(' ', $s), 'strlen'));
 	}
 
 	private function substitute(&$x) {
@@ -109,15 +110,14 @@ class PLCParser
                 $y = str_replace("\\$w", $w, $y);
             $x = $y;
         }
-        # if we find something else, return that
-        return $x;
 	}
 
 	# convert literal placeholders back to original strings
 	# and remove reserved boolean operator keywords from string
 	private function convertLiteralToList($tail) {
 		# before substitution split sentence to literals
-		if ($s = $this->sanitize($tail)) {
+		$s = $this->sanitize($tail);
+		if (count($s)) {
 			$a = explode(' ', $s);
 			array_walk($a, array($this, 'substitute'));
 			return $a;
@@ -141,7 +141,7 @@ class PLCParser
 	}
 
 	# sub routine for open and close parentheses
-	private function _sub(&$root, $tail, $level, $n) {
+	private function subRecursiveParenthesesGroups(&$root, $tail, $level, $n) {
 		# join tail to string
 		# only if string is not empty
 		if ($x = trim(implode('', $tail))) {
@@ -151,9 +151,10 @@ class PLCParser
 				$this->setMutual($x, $level, $n);
 			}
 			# add literals to root and flush tail
-			if ($y = $this->convertLiteralToList($x)) {
-				$root[] = $y; #extend!
-			}
+			$y = $this->convertLiteralToList($x);
+			if (count($y)) {
+				$root = array_merge($root, $y);
+			}	
 		}
 	}
 
@@ -166,7 +167,7 @@ class PLCParser
 			$char = substr($this->literal_string, $i, 1);
 			# create a new node if (
 			if ($char == $this->OPEN_PARENTHESES) {
-				$this->_sub($root, $tail, $level, 1);
+				$this->subRecursiveParenthesesGroups($root, $tail, $level, 1);
 				$tail = [];
 				# now recursively get the next data
 				@list($sub, $i, $level) = $this->recursiveParenthesesGroups($i+1, $level+1);
@@ -174,7 +175,7 @@ class PLCParser
 			# close the node and return back to parent if )
 			} elseif ($char == $this->CLOSE_PARENTHESES) {
 				$level -= 1;
-				$this->_sub($root, $tail, $level, 0);
+				$this->subRecursiveParenthesesGroups($root, $tail, $level, 0);
 				# it is important to return these information back to parent node
 				return [$root, $i + 1, $level];
 			# we are staying on same node level, collect characters
@@ -208,7 +209,98 @@ class PLCParser
 	}
 
 	public function deFormat($lst, $short=FALSE, $first=FALSE, $latex=FALSE) {
-        return NULL;
+
+        $first_operator_used = FALSE;
+        $was_first = FALSE;
+
+        $recursive = function ($current_item, $mutual, $negate=FALSE, $xor=FALSE, $xand=FALSE) use (&$recursive, &$short, &$first, &$latex, &$first_operator_used, &$was_first) {
+			// if item is not a list, return value
+			if (!is_array($current_item)) {
+				// boolean values
+				if (($current_item == 1 || strtolower($current_item) == 'true' ||
+					 $current_item == 0 || strtolower($current_item) == 'false'))
+					return $current_item;
+				// normal items wrapped by the first configured wrapper char
+				// escaping wrapper char inside the string
+				$current_item = replace($this->wrappers[0], '\\'.$this->wrappers[0], $current_item);
+				return $this->wrappers[0].$current_item.$this->wrappers[0];
+			}
+			// item is a list
+			$a = array($this->OPEN_PARENTHESES);
+			// should we negate next item
+			$next_item_negate = FALSE;
+			// is next item group xor
+			$next_item_xor = FALSE;
+			// is next item group xand
+			$next_item_xand = FALSE;
+			// loop all items
+			foreach ($current_item as $i => $item) {
+				// negation marker
+				if ($item == -1) {
+					$next_item_negate = TRUE;
+					if ($i == 0) $was_first = TRUE;
+				// xor marker
+				} else if ($item == -2) {
+					$next_item_xor = TRUE;
+					if ($i == 0) $was_first = TRUE;
+				// xand marker
+				} else if ($item == -3) {
+					$next_item_xand = TRUE;
+					if ($i == 0) $was_first = TRUE;
+				// item or list
+				} else {
+					// should we add operators?
+					// no if item is the first OR
+					// not / xor was used OR
+					// we use only the first
+					if ($i > 0 && !$was_first && !$first_operator_used) {
+						if ($mutual) {
+							if ($short) $a[] = '&';
+							else if ($latex) $a[] = '∧';
+							else $a[] = 'and';
+						} else {
+							if ($short) $a[] = '|';
+							else if ($latex) $a[] = '∨';
+							else $a[] = 'or';
+						}
+						if ($first) {
+							$first = FALSE;
+							$first_operator_used = TRUE;
+						}
+					}
+					// negate works both for groups and items
+					if ($next_item_negate) {
+						if ($short) $a[] = '!';
+						else if ($latex) $a[] = '¬';
+						else $a[] = 'not';
+					}
+					// xor and xand works for groups only
+					if (is_array($item)) {
+						if ($next_item_xor) {
+							if ($short) $a[] = '^';
+							else if ($latex) $a[] = '⊕';
+							else $a[] = 'xor';
+						}
+						if ($next_item_xand) {
+							if ($short) $a[] = '+';
+							else if ($latex) $a[] = '⊖';
+							else $a[] = 'xand';
+						}
+					}
+					// recursively add next items
+					$a[] = $recursive($item, !$mutual, $next_item_negate, $next_item_xor, $next_item_xand);
+					// reset negation, xor and xand
+					$next_item_negate = FALSE;
+					$next_item_xor = FALSE;
+					$next_item_xand = FALSE;
+					$was_first = FALSE;
+				}
+			}
+			$a[] = $this->CLOSE_PARENTHESES;
+			return implode(' ', $a);
+		};
+		// call sub routine to deformat structure
+		return $recursive($lst[1], !$lst[0]);
     }
 	
 	static function deformatInput($lst, $short=FALSE, $first=FALSE, $latex=FALSE){
@@ -222,7 +314,102 @@ class PLCParser
 	}
 
 	public function evaluate($input, $table=array()) {
+		// if input is string, parse it first
+		if (is_string($input)) {
+			$input = $this->parse($input);
+		}
+		// assume input is well formed so that we can calculate the truth value
+		if (is_array($input)) {
+			return $this->truthValue($input[1], !$input[0], $table, FALSE, FALSE, FALSE);
+		}
 		return NULL;
+	}
+
+	// xand, one or more, but not all
+	// single true is false, single false is false
+	private function some($a) {
+		return $this->any($a) && !$this->all($a);
+	}
+	// or, at least one, may be all, maybe one
+	private function any($a) {
+		return !empty(array_filter($a));
+	}
+	// all, may be one
+	private function all($a) {
+		return count(array_filter($a)) == count($a);
+	}
+	// xor, only one of many
+	// single true is true, single false is true
+	private function one($a) {
+		return count($a) == 1 || count(array_filter($a)) == 1;
+	}
+
+	private function truthValue($current_item, $mutual, $table, $negate, $xor, $xand) {
+		// if item is not a list, check the truth value
+		if (!is_array($current_item)) {
+			// see if translation table is given
+			if ($table && isset($table[$current_item])) {
+				$current_item = $table[$current_item];
+			}
+			// cast to string and lower case for easier comparison
+			$v = strtolower("".$current_item);
+			if ($v == 'true' || $v == '1') {
+				return !$negate;
+			}
+			return $negate;
+		}
+		// item is a list
+		$a = array();
+		// should we negate next item, was it a list or values
+		$next_item_negate = FALSE;
+		$next_item_xor = FALSE;
+		$next_item_xand = FALSE;
+
+		foreach ($current_item as $item) {
+			// negation marker
+			if ($item == -1) {
+				$next_item_negate = TRUE;
+			// xor marker
+			} else if ($item == -2) {
+				$next_item_xor = TRUE;
+			// xand marker
+			} else if ($item == -3) {
+				$next_item_xand = TRUE;
+			} else {
+				$a[] = $this->truthValue($item, !$mutual, $table, $next_item_negate, $next_item_xor, $next_item_xand);
+				// reset negation and xor
+				$next_item_negate = FALSE;
+				$next_item_xor = FALSE;
+				$next_item_xand = FALSE;
+			}
+		}
+		// is group AND / OR / XOR
+		// take care of negation for the list result too
+		if ($xor) {
+			// if only one of the values is true, but not more
+			if ($negate) {
+				return !$this->one($a);
+			}
+			return $this->one($a);
+		} else if ($xand) {
+			// if any of the values is true, but not all
+			if ($negate) {
+				return !$this->some($a);
+			}
+			return $this->some($a);
+		} else if ($mutual) {
+			// if all values are true
+			if ($negate) {
+				return !$this->all($a);
+			}
+			return $this->all($a);
+		} else {
+			// if some of the values is true
+			if ($negate) {
+				return !$this->any($a);
+			}
+			return $this->any($a);
+		}
 	}
 
 	static function evaluateInput($input, $table=array()){
@@ -245,7 +432,7 @@ class PLCParser
 		$wrappers = $wrappers ? $wrappers : $this->wrappers;
 		// is is possible to pass a different escape char, but it is probably
 		// not a good idea because many of the string processors use the same
-		$escape_char = $escape_char ? $open : '\\';
+		$escape_char = $escape_char ? $escape_char : '\\';
 
 		$stack = array();
 		$previous = NULL;
@@ -300,11 +487,11 @@ class PLCParser
 		return count($stack) == 0;
 	}
 
-	static function validateInput($input){
+	static function validateInput($input_string){
 		# bypass object construct
 		$c = new PLCParser();
 		try {
-			return $c->validate($input);
+			return $c->validate($input_string);
 		} catch (Exception $e) {
 			return NULL;
 		}
