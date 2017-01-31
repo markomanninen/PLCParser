@@ -350,7 +350,7 @@ $e = PLCParser::evaluateInput($p, $table);
 			</div>
 				<div class="panel panel-primary">
 				  <div class="panel-heading">Python</div>
-				  <div class="panel-body">...</div>
+				  <div class="panel-body">See Python version and similar examples from <a href="http://nbviewer.jupyter.org/github/markomanninen/PLCParser/blob/master/Prepositional%20Logic%20Clause%20Parser%20%28PLCParser%29.ipynb">Jupyter Notebook</a> project.</div>
 			</div>
 	  </div>
 
