@@ -30,7 +30,7 @@ $e = PLCParser::evaluateInput($p, $table);
 <html>
 	<head lang="en">
 		<meta charset="UTF-8">
-		<title>PLCParser - Prepositional Logic Clause Parser (Python, PHP, Javascript)</title>
+		<title>PLCParser - Propositional Logic Clause Parser (Python, PHP, Javascript)</title>
 
 		<link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap.min.css" />
 		<link rel="stylesheet" href="./src/elonmedia/plcparser/css/style.css" />
