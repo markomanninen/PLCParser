@@ -45,7 +45,17 @@ $e = PLCParser::evaluateInput($p, $table);
 		<script src="./src/elonmedia/plcparser/js/script.js"></script>
 		
 		<script>
-			
+			// Shorthand for $( document ).ready()
+			$(function() {
+				$('ul.navbar-nav li').each(function() {
+					$(this).click(function() {
+						$('ul.navbar-nav li').each(function() {
+							$(this).removeClass('active');
+						});
+						$(this).addClass('active');
+					});
+				});
+			});
 		</script>
 		<style>
 			
@@ -85,13 +95,14 @@ $e = PLCParser::evaluateInput($p, $table);
 					  </li>
 					</ul>
 				  </div>
-				  <div>
-						<div>The <a href="https://choosealicense.com/licenses/mit/">MIT</a> License</div>
-						<div>Copyright © 2017 Marko Manninen<div>
-					</div>
+				  <div style="color:grey;text-align:center;font-size:.75em">
+					<div><br/>The <a href="https://choosealicense.com/licenses/mit/">MIT</a> License</div>
+					<div>Copyright © 2017 Marko Manninen</div>
+				  </div>
 				</div>
 			  </nav>
 			</div>
+
 			<div class="col-sm-9 col-lg-10">
 
 <a class="github-ribbon" href="https://github.com/markomanninen/PLCParser"><img alt="Fork me on Github" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" /></a>
@@ -509,14 +520,9 @@ $e = PLCParser::evaluateInput($p, $table);
 </table>
 
 </div>
-		
-				
+
 				</div><!-- col -->
 			</div><!-- row -->
-			<div>
-				<div>The <a href="https://choosealicense.com/licenses/mit/">MIT</a> License</div>
-				<div>Copyright © 2017 Marko Manninen<div>
-			</div>
 		</div><!-- container -->
 	</body>
 </html>
