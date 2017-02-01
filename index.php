@@ -65,7 +65,7 @@ $e = PLCParser::evaluateInput($p, $table);
 					  <span class="icon-bar"></span>
 					  <span class="icon-bar"></span>
 					</button>
-					<a class="navbar-brand" href="./">PLCParser</a>
+					<a class="navbar-brand" href="./"><img src="https://raw.githubusercontent.com/markomanninen/PLCParser/master/plcparser_icon.png" style="float:left;width:20px; height:20px;margin:0 7px 5px 0">PLCParser</a>
 				  </div>
 				  <div class="collapse navbar-collapse">
 					<ul class="nav navbar-nav">
@@ -93,7 +93,7 @@ $e = PLCParser::evaluateInput($p, $table);
 <a class="github-ribbon" href="https://github.com/markomanninen/PLCParser"><img alt="Fork me on Github" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" /></a>
 
 		<div class="page-header">
-			<h1>PLCParser</h1>
+			<h1><img src="https://raw.githubusercontent.com/markomanninen/PLCParser/master/plcparser_icon.png" style="width:40px; height:40px;margin:0 10px 7px 0" />PLCParser</h1>
 			<h4>Prepositional Logic Clause Parser for Javascript, PHP &amp; Python</h4>
 		</div>
 
