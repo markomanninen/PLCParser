@@ -151,8 +151,36 @@ class PLCParserTestCase(unittest.TestCase):
 		assert evaluateInput('(1 ("A" "B"))', table) == True
 		
 		# DEFORMAT
+		assert deformatInput([True, [[1, 0]]]) == '( ( 1 and 0 ) )'
+		assert deformatInput([True, [-1, [1, 0]]]) == '( not ( 1 and 0 ) )'
+		assert deformatInput([False, [-1, [1, 0]]]) == '( not ( 1 or 0 ) )'
+		assert deformatInput([False, [-2, [1, 0]]]) == '( xor ( 1 or 0 ) )'
+		assert deformatInput([False, [-3, [1, 0]]]) == '( xand ( 1 or 0 ) )'
+
+		assert deformatInput([True, [[1, [0, 1]]]], first=True) == '( ( 1 and ( 0 1 ) ) )'
+		assert deformatInput([True, [[1, [0, 1]]]], latex=True) == '( ( 1 ∧ ( 0 ∨ 1 ) ) )'
+		assert deformatInput([True, [[1, [0, 1]]]], short=True) == '( ( 1 & ( 0 | 1 ) ) )'
+		assert deformatInput([True, [[1, [0, 1]]]], first=True, latex=True) == '( ( 1 ∧ ( 0 1 ) ) )'
+		assert deformatInput([True, [[1, [0, 1]]]], first=True, short=True) == '( ( 1 & ( 0 1 ) ) )'
 		
 		# VALIDATE
+		assert validateInput('') == True
+		assert validateInput('(') == False
+		assert validateInput(')') == False
+		assert validateInput('()') == True
+		assert validateInput('(")') == False
+		assert validateInput('("")') == True
+		assert validateInput('("\\"")') == True
+		assert validateInput('("\'")') == True
+		assert validateInput('(")" "(")') == True
+		assert validateInput('())') == False
+		assert validateInput('(()') == False
+		assert validateInput("('A')") == True
+		assert validateInput("(A and B)") == True
+		assert validateInput("(A and (B or C))") == True
+		assert validateInput("('A and (B or C))") == False
+		assert validateInput("('A' and (´B or C))") == True
+		assert validateInput("(\\()") == True
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,7 @@ import re
 
 """
 
-Prepositional Logic Clause Parser
+Propositional Logic Clause Parser
 
 Author: Marko Manninen <elonmedia@gmail.com>
 Date: 22.1.2017
@@ -184,28 +184,178 @@ class PLCParser():
             return None
 
     @staticmethod
-    def validateInput(s):
+    def validateInput(input_string):
         """ bypass object construct """
         c = PLCParser()
         try:
-            return c.validate(s)
+            return c.validate(input_string)
         except:
             return None
     
-    def validate(self, s):
-        pass
+    def validate(self, input_string, open_parenthesis=None, close_parenthesis=None, wrappers=[], escape_char=None):
+        # check parentheses and wrappers characters that they match
+        # for example (, [, {
+        open_parenthesis = open_parenthesis if open_parenthesis else self.OPEN_PARENTHESES
+        # for example: }, ], )
+        close_parenthesis = close_parenthesis if close_parenthesis else self.CLOSE_PARENTHESES
+        # multiple wrapper chars accepted, for example ['"', "'", "´"]
+        wrappers = wrappers if wrappers else self.wrappers
+        # is is possible to pass a different escape char, but it is probably
+        # not a good idea because many of the string processors use the same
+        escape_char = escape_char if escape_char else '\\'
+        # init vars
+        stack, current, last, previous = ([], None, None, None)
+        # loop over all characters in a string
+        for current in input_string:
+            #if previous character was escape character, then 
+            # swap it with the current one and continue to the next char
+            if previous == escape_char:
+                # see if current character is escape char, then there are
+                # two of them in row and we should reset previous marker
+                if current == escape_char:
+                    previous = None
+                else:
+                    previous = current
+                continue
+            # last stacked char. not that this differs from the previous value which
+            # is the previous char from string. last is the last char from stack
+            last = stack[-1] if stack else None
+            # if we are inside a wrapper accept ANY character 
+            # until the next unescaped wrapper char occurs
+            if last in wrappers and current != last:
+                # swap the current so that we can escape wrapper inside wrappers: "\""
+                previous = current
+                continue
+            # push open parenthesis or wrapper to the stack
+            if current == open_parenthesis or (current in wrappers and current != last):
+                stack.append(current)
+            # prepare to pop last parenthesis or wrapper
+            elif current == close_parenthesis or current in wrappers:
+                # if there is nothing on stack, should already return false
+                if len(stack) == 0:
+                    return False
+                else:
+                    # if we encounter wrapper char take the last wrapper char out from stack
+                    # or if the last char was open and current close parenthsis
+                    if last in wrappers or (last == open_parenthesis and current == close_parenthesis):
+                        stack.pop()
+                    else:
+                        return False
+            # update previous char
+            previous = current
+        # if there is something on stack then no closing char was found
+        return len(stack) == 0
 
     @staticmethod
-    def deformatInput(lst, short=False, firstonly=False, latex=False):
+    def deformatInput(lst, short=False, first=False, latex=False):
         """ bypass object construct """
         c = PLCParser()
         try:
-            return c.deformat(lst, short, firstonly, latex)
+            return c.deformat(lst, short, first, latex)
         except:
             return None
     
-    def deFormat(self, lst, short=False, firstonly=False, latex=False):
-        pass
+    def deformat(self, lst, short=False, first=False, latex=False):
+        
+        self.first_operator_used = False
+        self.was_first = False
+
+        def _(current_item, mutual, negate=False, xor=False, xand=False, short=False, first=False, latex=False):
+            # if item is not a list, return value
+            if not isinstance(current_item, list):
+                # boolean values
+                if current_item == 1 or str(current_item).lower() == 'true' or \
+                   current_item == 0 or str(current_item).lower() == 'false':
+                    return current_item
+                # normal items wrapped by the first configured wrapper char
+                # escaping wrapper char inside the string
+                current_item = current_item.replace(self.wrappers[0], '\\'+self.wrappers[0])
+                return self.wrappers[0]+current_item+self.wrappers[0]
+            # item is a list, open clause
+            a = [self.OPEN_PARENTHESES]
+            # should we negate next item
+            next_item_negate = False
+            # is next item group xor
+            next_item_xor = False
+            # is next item group xand
+            next_item_xand = False
+            # loop all items
+            for i, item in enumerate(current_item):
+                # negation marker
+                if item == -1:
+                    next_item_negate = True
+                    if i == 0:
+                        self.was_first = True
+                # xor marker
+                elif item == -2:
+                    next_item_xor = True
+                    if i == 0:
+                        self.was_first = True
+                # xand marker
+                elif item == -3:
+                    next_item_xand = True
+                    if i == 0:
+                        self.was_first = True
+                # item or list
+                else:
+                    # should we add operators?
+                    # no if item is the first OR
+                    # not / xor was used OR
+                    # we use only the first
+                    if i > 0 and not self.was_first and not self.first_operator_used:
+                        if mutual:
+                            if short:
+                                a.append('&')
+                            elif latex:
+                                a.append('∧')
+                            else:
+                                a.append('and')
+                        else:
+                            if short:
+                                a.append('|')
+                            elif latex:
+                                a.append('∨')
+                            else:
+                                a.append('or')
+                        if first:
+                            first = False
+                            self.first_operator_used = True
+                    # negate works both for groups and items
+                    if next_item_negate:
+                        if short:
+                            a.append('!')
+                        elif latex:
+                            a.append('¬')
+                        else:
+                            a.append('not')
+                    # xor and xand works for groups only
+                    if isinstance(item, list):
+                        if next_item_xor:
+                            if short:
+                                a.append('^')
+                            elif latex:
+                                a.append('⊕')
+                            else:
+                                a.append('xor')
+                        if next_item_xand:
+                            if short:
+                                a.append('+')
+                            elif latex:
+                                a.append('⊖')
+                            else:
+                                a.append('xand')
+                    # recursively add next items
+                    a.append(_(item, not mutual, next_item_negate, next_item_xor, next_item_xand, short=short, first=first, latex=latex))
+                    # reset negation, xor and xand
+                    next_item_negate = False
+                    next_item_xor = False
+                    next_item_xand = False
+                    self.was_first = False
+            # close clause
+            a.append(self.CLOSE_PARENTHESES)
+            return ' '.join(map(str, a))
+        # call sub routine to deformat structure
+        return _(lst[1], not lst[0], short=short, first=first, latex=latex)
 
     @staticmethod
     def evaluateInput(input_string, table={}):
