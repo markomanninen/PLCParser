@@ -222,7 +222,7 @@ class PLCParser
 					return $current_item;
 				// normal items wrapped by the first configured wrapper char
 				// escaping wrapper char inside the string
-				$current_item = replace($this->wrappers[0], '\\'.$this->wrappers[0], $current_item);
+				$current_item = str_replace($this->wrappers[0], '\\'.$this->wrappers[0], $current_item);
 				return $this->wrappers[0].$current_item.$this->wrappers[0];
 			}
 			// item is a list
