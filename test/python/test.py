@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import unittest
-from pyPLCParser import PLCParser, parseInput, evaluateInput, deformatInput
+from pyPLCParser import PLCParser, parseInput, evaluateInput, deformatInput, validateInput
 
 class PLCParserTestCase(unittest.TestCase):
 
