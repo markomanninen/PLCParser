@@ -31,8 +31,10 @@ $e = PLCParser::evaluateInput($p, $table);
 	<head lang="en">
 		<meta charset="UTF-8">
 		<title>PLCParser - Prepositional Logic Clause Parser (Python, PHP, Javascript)</title>
-		<link rel="stylesheet" href="./src/elonmedia/plcparser/css/style.css" />
+
 		<link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap.min.css" />
+		<link rel="stylesheet" href="./src/elonmedia/plcparser/css/style.css" />
+
 		<script src="./bower_components/jquery/dist/jquery.min.js"></script>
 		<script src="./bower_components/jquery-ui/jquery-ui.min.js"></script>
 		<script src="./bower_components/bootstrap/dist/css/bootstrap.min.js"></script>
@@ -40,163 +42,74 @@ $e = PLCParser::evaluateInput($p, $table);
 		<script src="./bower_components/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
 		<script src="./dist/PLCParser.min.js"></script>
-		<!-- jquery -->
+		<script src="./src/elonmedia/plcparser/js/script.js"></script>
+		
 		<script>
 			
-			Array.prototype.last = function () {
-			  return this[this.length - 1]
-			}
-
-			String.prototype.toTitleCase = function () {
-			  return this.replace(/\w\S*/g, function(txt) {
-				return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-			  })
-			}
-
-			function validate(s) {
-				return PLCParser.validateInput(s)
-			}
-
-			function evaluate(s, table) {
-				return PLCParser.evaluateInput(s, table)
-			}
-
-			function deformat(s, short, first, latex) {
-				return PLCParser.deformatInput(PLCParser.parseInput(s), short, first, latex)
-			}
-
-			function log(s) {
-				$('#result').trigger('change')
-				$('#result').text(s);
-			}
-
-			function change_deformat() {
-				var v = $('#input').val()
-				var o = validate(v)
-				if (!o) {
-					log(v + " = " + 'undefined')
-				} else {
-					var s = deformat(v, 
-							$('.radio input:checked').val() == "2", 
-							$('#firstonly').prop("checked"),
-							$('.radio input:checked').val() == "3")
-					var t = JSON.parse($('#table').text())
-					var e = evaluate(v, t)
-					log(s + " = " + e || 'false')
-				}
-			}
-
-			var last_input = '', previous_expression = '', input_color = ''
-			var formatted_color = 'lightgreen'
-
-			function keyup() {
-				//  input value
-				var input = $(this).val().trim()
-				// if last trimmed input value was different, then continue
-				if (input != last_input) {
-					// update last input
-					last_input = input
-					input_color = "white"
-					formatted_color = 'lightblue'
-					var expression;
-					// error on validation
-					if (!validate(input)) {
-						input_color = 'pink'
-						formatted_color = 'pink'
-						$('#object').text(JSON.stringify({}))
-						expression = input + " = " + 'undefined'
-						log(expression)
-						previous_expression = expression
-					} else {
-						var isFirstOnly = $('#firstonly').prop("checked")
-						var isShort = $('.radio input:checked').val() == "2"
-						var isMath = $('.radio input:checked').val() == "3"
-						var formatted_input = deformat(input, isShort, isFirstOnly, isMath)
-						var truth_table = JSON.parse($('#table').text())
-						var boolean = ""+evaluate(input, truth_table) || 'false'
-						
-						expression = formatted_input + " = " + boolean
-						// if expression is new parse object and update expression
-						if (previous_expression != expression) {
-							$('#object').text(JSON.stringify(PLCParser.parseInput(formatted_input)))
-							log(expression)
-							previous_expression = expression
-						}
-					}
-					// update input color
-					$(this).css('background-color', input_color)
-				}
-			}
-
-			// Shorthand for $( document ).ready()
-			$(function() {
-				$( "#input" ).on('keyup', keyup);
-				$( ".radio input" ).on('change', change_deformat);
-				$( "#firstonly" ).on('change', change_deformat);
-				$( "#result" ).change(function () {
-					  $(this).effect("highlight", {color:formatted_color}, 1000);
-				});
-				$( "#input" ).trigger('keyup');
-			});
-			
-			MathJax.Hub.Config({
-				tex2jax: {
-					inlineMath: [["$","$"]]
-				}
-			});
-			/*
-			var QUEUE = MathJax.Hub.queue
-		    var mathjax_formula = null
-		    var $math = $('#mathjax')
-		    var $input = $('#input')
-		    
-		    $math.text('$$'+$input.text()+'$$')
-		    $math.hide()
-
-		    QUEUE.Push(function () {
-		      mathjax_formula = MathJax.Hub.getAllJax("mathjax")[0]
-		    })
-
-		    window.UpdateMath = function (TeX) {
-			  $math.hide()
-		      QUEUE.Push(
-		          ["resetEquationNumbers", MathJax.InputJax.TeX],
-		          ["Text", mathjax_formula, "\\displaystyle{" + TeX + "}"]
-		      )
-		      $math.show()
-		    }
-		  */
 		</script>
 		<style>
-		body {
-			font-size: 160%;
-		}
-		table.table td {
-			font-size: 120%;
-			font-family: courier;
-		}
-		input#input {
-			font-size: 145%;
-			height: 45px;
-		}
+			
 		</style>
 	</head>
 	<body>
-		<div class="container">
+		<div class="container-fluid">
+
+		<div class="row">
+			<div class="col-sm-3 col-lg-2">
+			  <nav class="navbar navbar-inverse navbar-fixed-side">
+				<div class="container">
+				  <div class="navbar-header">
+					<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse">
+					  <span class="sr-only">Toggle navigation</span>
+					  <span class="icon-bar"></span>
+					  <span class="icon-bar"></span>
+					  <span class="icon-bar"></span>
+					</button>
+					<a class="navbar-brand" href="./">PLCParser</a>
+				  </div>
+				  <div class="collapse navbar-collapse">
+					<ul class="nav navbar-nav">
+					  <li class="active">
+						<a href="./#Operators">Operators</a>
+					  </li>
+					  <li class="">
+						<a href="./#Parsers">Parsers</a>
+						<ul>
+						<li><a href="./#Javascript">Javascript</a></li>
+						<li><a href="./#PHP">PHP</a></li>
+						<li><a href="./#Python">Python</a></li>
+						</ul>
+					  </li>
+					  <li class="">
+						<a href="./#Truth-tables">Truth tables</a>
+					  </li>
+					</ul>
+				  </div>
+				</div>
+			  </nav>
+			</div>
+			<div class="col-sm-9 col-lg-10">
+
+<a class="github-ribbon" href="https://github.com/markomanninen/PLCParser"><img alt="Fork me on Github" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" /></a>
 
 		<div class="page-header">
 			<h1>PLCParser</h1>
 			<h4>Prepositional Logic Clause Parser for Javascript, PHP &amp; Python</h4>
 		</div>
 
-		<div>
+		<div class="alert alert-danger">
+			<p><span class="glyphicon glyphicon-alert"></span>&nbsp;&nbsp;<b>NOTE</b> : Project is in draft mode. Any functionality can change at any time!</p>
+		</div>
+
+		<a id="Operators"></a>
+		<div class="page-header" id="Operators">
 			<h3>Operators</h3>
 		</div>
 
 		<div class="form-group">
 			<p>Symbols that can be used for propositional logic clauses:</p>
 			<div class="table-responsive">
-			<table class="table">
+			<table class="table table-bordered">
 			<tr>
 				<th></th>
 				<th>Negation</th>
@@ -246,13 +159,15 @@ $e = PLCParser::evaluateInput($p, $table);
 			</ul>
 			-->
 		</div>
-			
-		<div>
+		
+		<a id="Parsers"></a>
+		<div class="page-header">
 			<h3>Parsers</h3>
 		</div>
 
 		<div class="panel-group">
 				<div class="panel panel-primary">
+				  <a id="Javascript"></a>
 				  <div class="panel-heading">Javascript</div>
 				  <div class="panel-body">
 				  </div>
@@ -269,11 +184,11 @@ $e = PLCParser::evaluateInput($p, $table);
 
 					<div class="controls-row">
 						<label class="radio-inline">
-							<input <?=($type==1?'checked="checked" ':'')?> name="type" type="radio" id="type1" value="1">Word</label>
+							<input <?=($type==1?'checked="checked" ':'')?> name="type2" type="radio" id="type1" value="1">Word</label>
 						<label class="radio-inline">
-							<input <?=($type==2?'checked="checked" ':'')?> name="type" type="radio" id="type2" value="2">Char</label>
+							<input <?=($type==2?'checked="checked" ':'')?> name="type2" type="radio" id="type2" value="2">Char</label>
 						<label class="radio-inline">
-							<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" id="type3" value="3">Math</label>
+							<input <?=($type==3?'checked="checked" ':'')?> name="type2" type="radio" id="type3" value="3">Math</label>
 					</div>
 
 					<div class="form-group">
@@ -306,37 +221,37 @@ $e = PLCParser::evaluateInput($p, $table);
 				  </div>
 			</div>
 			<div class="panel panel-primary">
-				  
+				  <a id="PHP"></a>
 				  <div class="panel-heading" id="php-version">PHP</div>
 				  
 				  <div class="panel-body">
 				  
 				  <form method="POST" action="./#php-version">
 
-				  	<div class="form-group">
+					<div class="form-group">
 						<label for="input">Input:</label>
 						<input type="text" id="input" name="input" value="<?=htmlentities($input)?>" class="form-control" />
 					</div>
 
 					<div class="form-group">
 						<label for="table">Configuration:</label>
-						<textarea id="table" class="form-control" name="table" rows="5"><?=$table_str?></textarea>
+						<textarea class="form-control" name="table" rows="5"><?=$table_str?></textarea>
 					</div>
 
 					<div class="controls-row">
 							<label class="radio-inline control-label">
-								<input <?=($type==1?'checked="checked" ':'')?> name="type" type="radio" id="type1" value="1">Word</label>
+								<input <?=($type==1?'checked="checked" ':'')?> name="type" type="radio" value="1">Word</label>
 						
 							<label class="radio-inline control-label">
-								<input <?=($type==2?'checked="checked" ':'')?> name="type" type="radio" id="type2" value="2">Char</label>
+								<input <?=($type==2?'checked="checked" ':'')?> name="type" type="radio" value="2">Char</label>
 						
 							<label class="radio-inline control-label">
-								<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" id="type3" value="3">Math</label>
+								<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" value="3">Math</label>
 					</div>
 
 					<div class="form-group">
 						<div class="checkbox">
-							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" id="firstonly" name="firstonly" value="1" />First only</label>
+							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" name="firstonly" value="1" />First only</label>
 						</div>
 					</div>
 				
@@ -353,18 +268,20 @@ $e = PLCParser::evaluateInput($p, $table);
 				  </div>
 			</div>
 				<div class="panel panel-primary">
+				  <a id="Python"></a>
 				  <div class="panel-heading">Python</div>
 				  <div class="panel-body">See Python version and similar examples from <a href="http://nbviewer.jupyter.org/github/markomanninen/PLCParser/blob/master/Prepositional%20Logic%20Clause%20Parser%20%28PLCParser%29.ipynb">Jupyter Notebook</a> project.</div>
 			</div>
 	  </div>
-			
-		<div>
+
+		<a id="Truth-tables"></a>
+		<div class="page-header">
 			<h3>Truth tables</h3>
 		</div>
 		
 		<div class="col-md-12">
 	<h3>Unary</h3>
-    <p>An operation with only one operand, i.e. a single input. IS is tautology, not really needed for the practical purposes.</p>
+	<p>An operation with only one operand, i.e. a single input. IS is tautology, not really needed for the practical purposes.</p>
 </div>
 
 <div class="table-responsive col-md-5">
@@ -400,9 +317,9 @@ $e = PLCParser::evaluateInput($p, $table);
 <div class="col-md-12">
 	<h3>Binary</h3>
   
-  	<p>Calculates an operation of a set that combines two elements / inputs.</p>
+	<p>Calculates an operation of a set that combines two elements / inputs.</p>
   
-  	<p>Complementary operations (NAND, NOR, XNOR) are handled with NOT operator.</p>
+	<p>Complementary operations (NAND, NOR, XNOR) are handled with NOT operator.</p>
 </div>
 
 <div class="table-responsive col-md-4">
@@ -501,12 +418,12 @@ $e = PLCParser::evaluateInput($p, $table);
   <h3>Multiary</h3>
   
   <p>Ternary and other n-ary operations are handled with XOR and XAND operators. 
-    Special attention is required here. XOR is taken as "if one and only one" of the set is true. 
-    Thus operation can be done to a group of items, not only for two operands. 
-    In logic circuits ternary input is sometimes used and it is even more common operation in programming languages.</p>
+	Special attention is required here. XOR is taken as "if one and only one" of the set is true. 
+	Thus operation can be done to a group of items, not only for two operands. 
+	In logic circuits ternary input is sometimes used and it is even more common operation in programming languages.</p>
   
   <p>XAND is debated and sometimes thought to be a synonym for XNOR, but here it is an extension of XOR and means 
-    "if one or more, but not all" of the set is true.</p>
+	"if one or more, but not all" of the set is true.</p>
   
   <p>Complements XNOR and XNAND are again handled with not operator.</p>
   
@@ -535,7 +452,7 @@ $e = PLCParser::evaluateInput($p, $table);
 
 <table class="table table-bordered">
 <caption>XNOR</caption>
-<thead><tr><th>A</th><th>B</th><th>not xor (A B) = </th></tr></thead>
+<thead><tr><th>A</th><th>B</th><th>C</th><th>not xor (A B) = </th></tr></thead>
 <tbody>
   <tr><td>1</td><td>0</td><td>0</td><td class="danger">false</td></tr>
   <tr><td>0</td><td>1</td><td>0</td><td class="danger">false</td></tr>
@@ -550,7 +467,7 @@ $e = PLCParser::evaluateInput($p, $table);
 
 </div>
   
-    
+	
 <div class="table-responsive col-md-4">
 
 <table class="table table-bordered">
@@ -574,7 +491,7 @@ $e = PLCParser::evaluateInput($p, $table);
 
 <table class="table table-bordered">
 <caption>XNAND</caption>
-<thead><tr><th>A</th><th>B</th><th>not xand (A B) = </th></tr></thead>
+<thead><tr><th>A</th><th>B</th><th>C</th><th>not xand (A B) = </th></tr></thead>
 <tbody>
   <tr><td>1</td><td>0</td><td>0</td><td class="danger">false</td></tr>
   <tr><td>0</td><td>1</td><td>0</td><td class="danger">false</td></tr>
@@ -588,7 +505,10 @@ $e = PLCParser::evaluateInput($p, $table);
 </table>
 
 </div>
-
+		
+				
+				</div><!-- col -->
+			</div><!-- row -->
 		</div><!-- container -->
 	</body>
 </html>
