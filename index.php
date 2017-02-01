@@ -85,6 +85,10 @@ $e = PLCParser::evaluateInput($p, $table);
 					  </li>
 					</ul>
 				  </div>
+				  <div>
+						<div>The <a href="https://choosealicense.com/licenses/mit/">MIT</a> License</div>
+						<div>Copyright © 2017 Marko Manninen<div>
+					</div>
 				</div>
 			  </nav>
 			</div>
@@ -509,6 +513,10 @@ $e = PLCParser::evaluateInput($p, $table);
 				
 				</div><!-- col -->
 			</div><!-- row -->
+			<div>
+				<div>The <a href="https://choosealicense.com/licenses/mit/">MIT</a> License</div>
+				<div>Copyright © 2017 Marko Manninen<div>
+			</div>
 		</div><!-- container -->
 	</body>
 </html>
