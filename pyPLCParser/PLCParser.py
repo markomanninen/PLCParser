@@ -1,4 +1,5 @@
-# PLCParser.py
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 import re
 
 """
@@ -404,8 +405,8 @@ class PLCParser():
         # is group AND / OR / XOR
         # take care of negation for the list result too
         if xor:
-            # if one of the values is true, but not more
-            return not (any(a) and not all(a)) if negate else any(a) and not all(a)
+            # if only one of the values is true, but not more
+            return not (len(a) > 1 and len([b for b in a if b]) == 1) if negate else (len(a) > 1 and len([b for b in a if b]) == 1)
         elif xand:
             # if any of the values are true, but not all
             return not (any(a) and not all(a)) if negate else any(a) and not all(a)
