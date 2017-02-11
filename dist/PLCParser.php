@@ -45,6 +45,7 @@ class PLCParser
         }
         $this->STRING_LITERALS = '/'.implode('|', $a).'/';
         $this->mutual = NULL;
+        $this->operator_schemas = array();
     }
     
     private function setLiterals($input_string) {
@@ -497,4 +498,38 @@ class PLCParser
         }
     }
 
+    static function jsonSchema($input, $table=array()) {
+        $c = new PLCParser();
+        try {
+            // if input is string, parse it first
+            if (is_string($input)) {
+                $input = $c->parse($input);
+            }
+            // assume input is well formed
+            if (is_array($input)) {
+                return $c->buildJsonSchema($input, $table);
+            }
+        } catch (Exception $e) {}
+        return NULL;
+    }
+
+    public function buildJsonSchema($input, $table=array()) {
+        $schema = $this->schema(is_string($input) ? $this->parse($input) : $input, $table);
+        // after running schema method all required schema components are collected
+        // and returned as a json string
+        $jpls = new JsonPropositionalLogicSchema();
+        return $jpls->get($schema, $this->operator_schemas);
+    }
+
+    private function schema($current_item, $table, $negate=TRUE) {
+
+    }
+
+}
+
+class JsonPropositionalLogicSchema
+{
+    function get($schema, $params) {
+        return;
+    }
 }
