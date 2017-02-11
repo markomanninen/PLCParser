@@ -497,4 +497,30 @@ class PLCParser
 		}
 	}
 
+	static function jsonSchema($input, $table=array()){
+		# bypass object construct
+		$c = new PLCParser();
+		try {
+			return $c->buildJsonSchema($input, $table);
+		} catch (Exception $e) {
+			return NULL;
+		}
+	}
+
+	public function buildJsonSchema($input, $table=array()) {
+		// if input is string, parse it first
+		if (is_string($input)) {
+			$input = $this->parse($input);
+		}
+		// assume input is well formed so that we can calculate the truth value
+		if (is_array($input)) {
+			return $this->schema($input, $table);
+		}
+		return NULL;
+	}
+
+	private function schema($current_item, $table, $negate=True) {
+		
+	}
+
 }
