@@ -1,63 +1,58 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import re
+from . JsonSchema import JsonPropositionalLogicSchema
 
 """
 
 Propositional Logic Clause Parser
 
 Author: Marko Manninen <elonmedia@gmail.com>
-Date: 22.1.2017
+Date: 7.2.2017
 
 """
 
+NOT_OPERATOR = -1
+AND_OPERATOR = -2
+XOR_OPERATOR = -3
+OR_OPERATOR = -4
+NAND_OPERATOR = -5
+XNOR_OPERATOR = -6
+NOR_OPERATOR = -7
+
+class ParseException(Exception):
+    pass
+
 class PLCParser():
-    
-    # normalize string to standard format i.e.
-    # separate operators from other strings and add spaces
-    # for keywords: xor or xand and not
-    PREPROCESS_OPERATORS1 = re.compile(
-            r'([\)])[\s]*(xor|or|xand|and|not)[\s]+|'+\
-            r'[\s]+(xor|or|xand|and|not)[\s]*([\(])|'+\
-            r'[\s]+(xor|or|xand|and|not)[\s]+'
-            , re.IGNORECASE)
-    # for special chars: ^ | + & !
-    PREPROCESS_OPERATORS2 = re.compile(
-            r'([\)])[\s]*(\^|\||\+|\&|\!)[\s]+|'+\
-            r'[\s]+(\^|\||\+|\&|\!)[\s]*([\(])|'+\
-            r'[\s]+(\^|\||\+|\&|\!)[\s]+')
-    # for math chars: ⊖ ⊕ ∨ ∧ ¬
-    PREPROCESS_OPERATORS3 = re.compile(
-            r'([\)])[\s]*(⊕|∨|⊖|∧|¬)[\s]+|'+\
-            r'[\s]+(⊕|∨|⊖|∧|¬)[\s]*([\(])|'+\
-            r'[\s]+(⊕|∨|⊖|∧|¬)[\s]+')
-    # get operators from start, middle and end of the string
-    OPERATORS = re.compile(r'(^|\s+)(or|and|\||\&|∨|∧)(\s+|$)', re.IGNORECASE)
-    # find xor operator
-    XOR = re.compile(r'(\^|xor|⊕)', re.IGNORECASE)
-    # find xand operator, meaningful in groups only
-    XAND = re.compile(r'(\+|xand|⊖)', re.IGNORECASE)
-    # find not operator
-    NOT = re.compile(r'(\!|not|¬)', re.IGNORECASE)
 
     def __init__(self, parentheses = ['(', ')'], wrappers = ["'", '"']):
-        """ constructor """
+        """ PLCParser class constructor """
         self.OPEN_PARENTHESES, self.CLOSE_PARENTHESES = parentheses
         # http://stackoverflow.com/questions/430759/regex-for-managing-escaped-characters-for-items-like-string-literals
         self.wrappers = wrappers
         self.STRING_LITERALS = re.compile('|'.join([r"%s[^%s\\]*(?:\\.[^%s\\]*)*%s" % 
                                           (w,w,w,w) for w in self.wrappers]))
-        self.mutual = None
+        self.operators = {
+            NOT_OPERATOR: {'word': 'not', 'char': '!', 'math': '¬'},
+            AND_OPERATOR: {'word': 'and', 'char': '&', 'math': '∧'},
+            XOR_OPERATOR: {'word': 'xor', 'char': '^', 'math': '⊕'},
+            OR_OPERATOR:  {'word': 'or', 'char': '|', 'math': '∨'},
+            NAND_OPERATOR: {'word': 'nand', 'char': '↑', 'math': '↑'},
+            XNOR_OPERATOR: {'word': 'xnor', 'char': '⊖', 'math': '⊖'},
+            NOR_OPERATOR:  {'word': 'nor', 'char': '↓', 'math': '↓'}
+        }
+        self.operator_schemas = {}
     
     def setLiterals(self, input_string):
-        n=1
         self.literals = {}
         # find literals
         lit = self.STRING_LITERALS.search(input_string)
+        n = 1
         while lit:
             g = lit.group()
-            key = 'LITERAL%s' % n
-            # set literal by key and value by removing " and ' wrapper chars
+            key = "L%s" % n
+            # set literal by key and value by removing 
+            # for example " and ' wrapper chars
             self.literals[key] = g[1:-1]
             # remove literal from original input and replace with key
             input_string = input_string.replace(g, " %s " % key)
@@ -65,115 +60,129 @@ class PLCParser():
             lit = self.STRING_LITERALS.search(input_string)
             # next literal number
             n += 1
+        # wrap parenthesis and operator symbols with space for later usage
+        input_string = input_string.replace(self.OPEN_PARENTHESES, ' %s ' % self.OPEN_PARENTHESES)
+        input_string = input_string.replace(self.CLOSE_PARENTHESES, ' %s ' % self.CLOSE_PARENTHESES)
+        for operator, options in self.operators.items():
+            input_string = input_string.replace(options['math'], ' %s ' % options['math'])
+            input_string = input_string.replace(options['char'], ' %s ' % options['char'])
         # set literal string and its length for recursive parser
         self.literal_string = input_string
-        self.literal_string_length = len(self.literal_string)
-    
-    # sanitize or / and keywords, they are optional anyway and just needed for readability
-    # and to decide what is the mutual starting point for boolean logic on the first node level
-    def sanitize(self, s):
-        # make sentence well formatted: "(A and(B)   or C)" -> "(A and (B) or C)"
-        #s = self.PREPROCESS_OPERATORS1.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
-        #s = self.PREPROCESS_OPERATORS2.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
-        #s = self.PREPROCESS_OPERATORS3.sub("\g<1> \g<2>\g<5>\g<3> \g<4>", s)
-        # replace operators with empty space
-        s = self.OPERATORS.sub(' ', s)
-        # prepare to remove exclamation mark, that is used for NOT boolean logic tree
-        s = self.NOT.sub(' \g<1> ', s)
-        # prepare to remove ^ mark, that is used for XOR boolean logic tree
-        s = self.XOR.sub(' \g<1> ', s)
-        # remove extra double, triple and other longs whitespaces
-        # only single spaces between literals are left
-        return ' '.join(s.split())
+      
+    def _parse(self, l, operators=(-7, -6, -5, -4, -3, -2)):
+        # http://stackoverflow.com/questions/42032418/group-operands-by-logical-connective-precedence-from-python-list
+        # if nothing on list, raise error
+        if len(l) < 1:
+            raise ParseException("Malformed input. Length 0 or multiple operators.")
+        # one item on list
+        if len(l) == 1:
+            # if not negation or other operators
+            if l[0] != NOT_OPERATOR and not l[0] in operators:
+                # substitute literals back to original content if available
+                if not isinstance(l[0], list) and l[0] in self.literals:
+                    l[0] = self.literals[l[0]]
+                    # finally replace escaped content with content
+                    for w in self.wrappers:
+                        l[0] = l[0].replace("\\%s" % w, w)
+                # return data
+                return l[0]
+            # raise error because operator should not exist at this point
+            else:
+                raise ParseException("Malformed input. Operator not found: %s." % l[0])
+        # we are looping over all binary operators in order: 
+        # -4 = or, -3 = xor, -2 = and
+        if len(operators) > 0:
+            operator = operators[0]
+            try:
+                # for left-associativity of binary operators
+                position = len(l) - 1 - l[::-1].index(operator)
+                return [self._parse(l[:position], operators), operator, self._parse(l[position+1:], operators[1:])]
+            except ValueError:
+                return self._parse(l, operators[1:])
+        # expecting only not operator at this point
+        if l[0] != NOT_OPERATOR:
+            raise ParseException("Malformed input. Operator expected, %s found." % l[0])
+        # return data with not operator
+        return [NOT_OPERATOR, self._parse(l[1:], operators)]
 
-    # convert literal placeholders back to original strings
-    # and remove reserved boolean operator keywords from string
-    def convertLiteralToList(self, tail):
-        def substitute(x):
-            # not operator becomes -1
-            if x.strip() == "!" or x.strip() == "not" or x.strip() == "¬":
-                return -1
-            # xor operator becomes -2
-            elif x.strip() == "^" or x.strip() == "xor" or x.strip() == "∨":
-                return -2
-            # xor operator becomes -3
-            elif x.strip() == "+" or x.strip() == "xand" or x.strip() == "∧":
-                return -3
-            # literal placeholders gets replaced
-            elif x in self.literals:
-                y = self.literals[x]
-                for w in self.wrappers:
-                    y = y.replace("\\%s" % w, w)
-                return y
-            # if we find something else, return that
-            else:
-                return x
-        # before substitution split sentence to literals
-        s = self.sanitize(tail)
-        if s:
-            return map(substitute, s.split(' '))
-        else:
-            return None
-    
-    def setMutual(self, s, level, n):
-        # if it is not yet set and level is n (0 or 1) and OPERATOR is found from string
-        # this will take the first boolean AND/OR from the first levels of recursion
-        # calculating from left and make it the mutual starting point
-        if level == n:
-            o = self.OPERATORS.search(s)
-            if o:
-                t = o.group().lower().strip()
-                self.mutual = True if t == "and" or t == "&" or t == "∧" else False
+    def substitute(self, x):
+        y = x.strip().lower()
+        # not operator becomes -1
+        if y == "!" or y == "not" or y == "¬":
+            return NOT_OPERATOR
+        # and operator becomes -2
+        elif y == "&" or y == "and" or y == "∧":
+            return AND_OPERATOR
+        # xor operator becomes -3
+        elif y == "^" or y == "xor" or y == "⊕":
+            return XOR_OPERATOR
+        # or operator becomes -4
+        elif y == "|" or y == "or" or y == "∨":
+            return OR_OPERATOR
+        # or operator becomes -5
+        elif y == "↑" or y == "nand" or y == "↑":
+            return NAND_OPERATOR
+        # or operator becomes -6
+        elif y == "⊖" or y == "xnor" or y == "⊖":
+            return XNOR_OPERATOR
+        # or operator becomes -7
+        elif y == "↓" or y == "nor" or y == "↓":
+            return NOR_OPERATOR
+        elif y == "1" or y == "0":
+            return int(y)
+        return x
+
+    def recursiveParenthesesGroups(self):
         
-    def recursiveParenthesesGroups(self, i=0, level=0):
-        # sub routine for open and close parentheses
-        def _(root, tail, level, n):
-            # join tail to string
-            x = ''.join(tail).strip()
-            # only if string is not empty
-            if x:
-                # only id mutual is not set,
-                # try to retrieve mutual boolean starting point
-                if self.mutual is None:
-                    self.setMutual(x, level, n)
-                # add literals to root and flush tail
-                y = self.convertLiteralToList(x)
-                if y:
-                    root.extend(y)
-        
-        # collect sub and final result to these variables
-        tail, root = [], []
-        
-        while i < self.literal_string_length:
-            char = self.literal_string[i]
-            # create a new node if (
-            if char == self.OPEN_PARENTHESES:
-                _(root, tail, level, 1)
-                tail = []
-                # now recursively get the next data
-                sub, i, level = self.recursiveParenthesesGroups(i+1, level+1)
-                root.append(sub)
-            # close the node and return back to parent if )
-            elif char == self.CLOSE_PARENTHESES:
-                level -= 1
-                _(root, tail, level, 0)
-                # it is important to return these information back to parent node
-                return root, i + 1, level
-            # we are staying on same node level, collect characters
-            else:
-                tail.append(char)
-                i += 1
-        # when the whole input string is processed:
-        # add mutual boolean value to the root level for mutual change logic
-        self.mutual = self.mutual if type(self.mutual) is bool else True
-        # finally return recursively constructed list
-        return self.mutual, root
+        def rec(a):
+            # http://stackoverflow.com/questions/17140850/how-to-parse-a-string-and-return-a-nested-array/17141899#17141899
+            stack = [[]]
+            for x in a:
+                if x == self.OPEN_PARENTHESES:
+                    stack[-1].append([])
+                    stack.append(stack[-1][-1])
+                elif x == self.CLOSE_PARENTHESES:
+                    stack.pop()
+                    # special treatment for prefix notation
+                    # (^ a b c) => (a ^ b ^ c) => (a ^ (b ^ c))
+                    # (& a b c) => (a & b & c) => (a & (b & c))
+                    # (| a b c) => (a | b | c) => (a | (b | c))
+                    # also (& a b (| c d)) => (a & b) & (c | d) is possible!
+                    if len(stack[-1][-1]) > 1 and \
+                       isinstance(stack[-1][-1][0], int) and \
+                       stack[-1][-1][0] in self.operators and \
+                       stack[-1][-1][0] != NOT_OPERATOR:
+                        op = stack[-1][-1][0]
+                        b = []
+                        for a in stack[-1][-1][1:]:
+                            b.extend([a, op])
+                        stack[-1][-1] = b[:-1]
+                    # see if remaining content has more than one
+                    # operator and make them nested set in that case
+                    stack[-1][-1] = self._parse(stack[-1][-1])
+                    if not stack:
+                        raise ParseException('Malformed input. Parenthesis mismatch. Opening parentheses missing.')
+                else:
+                    stack[-1].append(x)
+            if len(stack) > 1:
+                raise ParseException('Malformed input. Parenthesis mismatch. Closing parentheses missing.')
+            return stack.pop()
+
+        # remove whitespace from literal string (!=input string at this point already)
+        a = ' '.join(self.literal_string.split()).split(' ')
+        # artificially add parentheses if not provided
+        a = [self.OPEN_PARENTHESES] + a + [self.CLOSE_PARENTHESES]
+        # substitute different operators by numeral representatives
+        a = map(self.substitute, a)
+        # loop over the list of literals placeholders and operators and parentheses
+        return rec(list(a))
 
     def parse(self, input_string):
         """ main method """
-        self.input_string = input_string.strip()
-        self.setLiterals(input_string)
-        return self.recursiveParenthesesGroups()
+        # first set literals
+        self.setLiterals(input_string.strip())
+        # then recursively parse clause
+        return self.recursiveParenthesesGroups()[0]
 
     @staticmethod
     def parseInput(input_string):
@@ -181,7 +190,8 @@ class PLCParser():
         c = PLCParser()
         try:
             return c.parse(input_string)
-        except:
+        except ParseException as pe:
+            print(pe)
             return None
 
     @staticmethod
@@ -248,20 +258,16 @@ class PLCParser():
         return len(stack) == 0
 
     @staticmethod
-    def deformatInput(lst, short=False, first=False, latex=False):
-        """ bypass object construct """
+    def deformatInput(lst, operator_type="word"):
+        """ bypass object construct. Types are: word, char, math"""
         c = PLCParser()
         try:
-            return c.deformat(lst, short, first, latex)
+            return c.deformat(lst, operator_type=operator_type)
         except:
             return None
     
-    def deformat(self, lst, short=False, first=False, latex=False):
-        
-        self.first_operator_used = False
-        self.was_first = False
-
-        def _(current_item, mutual, negate=False, xor=False, xand=False, short=False, first=False, latex=False):
+    def deformat(self, lst, operator_type = "word"):
+        def _(current_item, operator_type, first=True):
             # if item is not a list, return value
             if not isinstance(current_item, list):
                 # boolean values
@@ -273,151 +279,136 @@ class PLCParser():
                 current_item = current_item.replace(self.wrappers[0], '\\'+self.wrappers[0])
                 return self.wrappers[0]+current_item+self.wrappers[0]
             # item is a list, open clause
-            a = [self.OPEN_PARENTHESES]
-            # should we negate next item
-            next_item_negate = False
-            # is next item group xor
-            next_item_xor = False
-            # is next item group xand
-            next_item_xand = False
+            a = []
+            if not first:
+                a.append(self.OPEN_PARENTHESES)
             # loop all items
-            for i, item in enumerate(current_item):
-                # negation marker
-                if item == -1:
-                    next_item_negate = True
-                    if i == 0:
-                        self.was_first = True
-                # xor marker
-                elif item == -2:
-                    next_item_xor = True
-                    if i == 0:
-                        self.was_first = True
-                # xand marker
-                elif item == -3:
-                    next_item_xand = True
-                    if i == 0:
-                        self.was_first = True
+            for item in current_item:
+                # operators
+                if not isinstance(item, list) and item in self.operators:
+                    a.append(self.operators[item][operator_type])
                 # item or list
                 else:
-                    # should we add operators?
-                    # no if item is the first OR
-                    # not / xor was used OR
-                    # we use only the first
-                    if i > 0 and not self.was_first and not self.first_operator_used:
-                        if mutual:
-                            if short:
-                                a.append('&')
-                            elif latex:
-                                a.append('∧')
-                            else:
-                                a.append('and')
-                        else:
-                            if short:
-                                a.append('|')
-                            elif latex:
-                                a.append('∨')
-                            else:
-                                a.append('or')
-                        if first:
-                            first = False
-                            self.first_operator_used = True
-                    # negate works both for groups and items
-                    if next_item_negate:
-                        if short:
-                            a.append('!')
-                        elif latex:
-                            a.append('¬')
-                        else:
-                            a.append('not')
-                    # xor and xand works for groups only
-                    if isinstance(item, list):
-                        if next_item_xor:
-                            if short:
-                                a.append('^')
-                            elif latex:
-                                a.append('⊕')
-                            else:
-                                a.append('xor')
-                        if next_item_xand:
-                            if short:
-                                a.append('+')
-                            elif latex:
-                                a.append('⊖')
-                            else:
-                                a.append('xand')
                     # recursively add next items
-                    a.append(_(item, not mutual, next_item_negate, next_item_xor, next_item_xand, short=short, first=first, latex=latex))
-                    # reset negation, xor and xand
-                    next_item_negate = False
-                    next_item_xor = False
-                    next_item_xand = False
-                    self.was_first = False
+                    a.append(_(item, operator_type, False))
             # close clause
-            a.append(self.CLOSE_PARENTHESES)
+            if not first:
+                a.append(self.CLOSE_PARENTHESES)
             return ' '.join(map(str, a))
         # call sub routine to deformat structure
-        return _(lst[1], not lst[0], short=short, first=first, latex=latex)
+        return _(lst, operator_type)
 
     @staticmethod
-    def evaluateInput(input_string, table={}):
+    def evaluateInput(i, table={}):
         """ bypass object construct """
         c = PLCParser()
         try:
-            return c.evaluate(input_string, table)
+            return c.evaluate(i, table)
         except:
             return None
 
     def evaluate(self, i, table={}):
-        if type(i) == str:
-            i = self.parse(i)
-        if type(i) == tuple:
-            return self.truth_value(i[1], not i[0], table)
-        return None
+        return self.truth_value(self.parse(i) if type(i) == str else i, table)
 
-    def truth_value(self, current_item, mutual=True, table=None, negate=False, xor=False, xand=False):
+    def truth_value(self, current_item, table, negate=True):
         # if item is not a list, check the truth value
         if not isinstance(current_item, list):
             if table and current_item in table:
                 current_item = table[current_item]
-            if str(current_item).lower() in ['true', '1']:
-                return not negate 
-            return negate
+            return str(current_item).lower() in ['true', '1']
         # item is a list
         a = []
         # should we negate next item, was it a list or values
-        next_item_negate, next_item_xor, next_item_xand = False, False, False
+        operator = -4
         for item in current_item:
-            # negation marker
-            if item == -1:
-                next_item_negate = True
-            # xor marker
-            elif item == -2:
-                next_item_xor = True
-            # xand marker
-            elif item == -3:
-                next_item_xand = True
+            # operators
+            if not isinstance(item, list) and item in self.operators:
+                if item == NOT_OPERATOR:
+                    negate = False
+                else:
+                    operator = item
             else:
-                a.append(self.truth_value(item, not mutual, table, next_item_negate, next_item_xor, next_item_xand))
-                # reset negation and xor
-                next_item_negate = False
-                next_item_xor = False
-                next_item_xand = False
+                a.append(self.truth_value(item, table))
         # is group AND / OR / XOR
         # take care of negation for the list result too
-        if xor:
-            # if only one of the values is true, but not more
-            return not (len(a) > 1 and len([b for b in a if b]) == 1) if negate else (len(a) > 1 and len([b for b in a if b]) == 1)
-        elif xand:
+        if operator == XOR_OPERATOR or operator == XNOR_OPERATOR:
             # if any of the values are true, but not all
-            return not (any(a) and not all(a)) if negate else any(a) and not all(a)
-        elif mutual:
+            if operator == XNOR_OPERATOR:
+                return not (any(a) and not all(a)) if negate else any(a) and not all(a)
+            return any(a) and not all(a) if negate else not (any(a) and not all(a))
+        elif operator == AND_OPERATOR or operator == NAND_OPERATOR:
             # if all values are true
-            return not all(a) if negate else all(a)
+            if operator == NAND_OPERATOR:
+                return not all(a) if negate else all(a)
+            return all(a) if negate else not all(a)
+        # operator == OR_OPERATOR
         else:
             # if some of the values is true
-            return not any(a) if negate else any(a)
+            if operator == NOR_OPERATOR:
+                return not any(a) if negate else any(a)
+            return any(a) if negate else not any(a)
+
+    @staticmethod
+    def jsonSchema(i, table={}):
+        """ bypass object construct """
+        c = PLCParser()
+        try:
+            return c.buildJsonSchema(i, table)
+        except:
+            return None
+
+    def buildJsonSchema(self, i, table={}):
+        schema = self.schema(self.parse(i) if type(i) == str else i, table)
+        # after running schema method all required schema components are collected
+        ## and returned as a json string
+        jpls = JsonPropositionalLogicSchema()
+        return jpls.get(schema, **self.operator_schemas)
+
+    def schema(self, current_item, table, negate=True):
+        # item is a list
+        a = []
+        # should we negate next item, was it a list or values
+        operator = -2
+        for item in current_item:
+            # operators
+            if not isinstance(item, list) and item in self.operators:
+                if item == NOT_OPERATOR:
+                    negate = False
+                else:
+                    operator = item
+            else:
+                if isinstance(item, list):
+                    a.append(self.schema(item, table))
+        # is group AND / OR / XOR
+        # take care of negation for the list result too
+        if operator == XOR_OPERATOR or operator == XNOR_OPERATOR:
+            # if any of the values are true, but not all
+            if operator == XNOR_OPERATOR:
+                op = '_xnor' if negate else '_xor'
+            op = '_xor' if negate else '_xnor'
+        elif operator == OR_OPERATOR or operator == NOR_OPERATOR:
+            # if some of the values is true
+            if operator == NOR_OPERATOR:
+                op = '_nor' if negate else '_or'
+            op = '_or' if negate else '_nor'
+        # operator == AND_OPERATOR
+        else:
+            # if all values are true
+            if operator == NAND_OPERATOR:
+                op = '_nand' if negate else '_and'
+            op = '_and' if negate else '_nand'
+        # add used operator to the schema
+        self.operator_schemas[op] = True
+        # generate schema
+        if len(a) > 0:
+            items = '{"items": {%s}}' % ',\r\n\t'.join(a)
+            return '{"allOf": [\r\n\t{"$ref": "#/definitions/%s"},\r\n\t%s]}' % (op, items)
+        # the deep most nested level has no appended items on a
+        else:
+            return '"$ref": "#/definitions/%s"' % op
 
 parseInput = PLCParser.parseInput
 evaluateInput = PLCParser.evaluateInput
 deformatInput = PLCParser.deformatInput
 validateInput = PLCParser.validateInput
+jsonSchema = PLCParser.jsonSchema
