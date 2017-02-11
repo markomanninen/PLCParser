@@ -47,6 +47,7 @@ class PLCParser():
             NOR_OPERATOR:  {'word': 'nor', 'char': '↓', 'math': '↓', 'func': lambda a: not any(a)}
         }
         self.operator_schemas = {}
+        self.negate_unary_operator = False
     
     def setLiterals(self, input_string):
         self.literals = {}
@@ -159,8 +160,14 @@ class PLCParser():
                        stack[-1][-1][0] != NOT_OPERATOR:
                         op = stack[-1][-1][0]
                         b = []
+                        # append operator between all operands
                         for a in stack[-1][-1][1:]:
                             b.extend([a, op])
+                        # in special case where only one operand and one operator is found
+                        # we should handle the case differently on evaluation process
+                        # TODO: it is not possible to deformat this kind of structure
+                        if op < -4 and len(b) == 2:
+                            self.negate_unary_operator = True
                         stack[-1][-1] = b[:-1]
                     # see if remaining content has more than one
                     # operator and make them nested set in that case
@@ -196,7 +203,6 @@ class PLCParser():
         try:
             return c.parse(input_string)
         except ParseException as pe:
-            print(pe)
             return None
 
     @staticmethod
@@ -323,7 +329,9 @@ class PLCParser():
             if table and current_item in table:
                 current_item = table[current_item]
             # force item to string and lowercase for simpler comparison
-            return str(current_item).lower() in ['true', '1']
+            # if only single operator is given on input, then self.negate_unary_operator
+            # is set to true, thus comparison here is done
+            return (str(current_item).lower() in ['true', '1']) != self.negate_unary_operator
         # item is a list
         a = []
         # default operator
