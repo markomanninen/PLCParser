@@ -142,7 +142,6 @@ $j = PLCParser::jsonSchema($p, $table);
 				<th>Negation</th>
 				<th>Conjunction</th>
 				<th>Exclusive or</th>
-				<th>Exclusive and</th>
 				<th>Disconjunction</th>
 				<th>Boolean</th>
 			</tr>
@@ -151,7 +150,6 @@ $j = PLCParser::jsonSchema($p, $table);
 				<td>not</td>
 				<td>and</td>
 				<td>xor</td>
-				<td>xand</td>
 				<td>or</td>
 				<td>true / false</td>
 			</tr>
@@ -160,7 +158,6 @@ $j = PLCParser::jsonSchema($p, $table);
 				<td>!</td>
 				<td>&amp;</td>
 				<td>^</td>
-				<td>+</td>
 				<td>|</td>
 				<td>1 / 0</td>
 			</tr>
@@ -169,7 +166,6 @@ $j = PLCParser::jsonSchema($p, $table);
 				<td>$\lnot$</td>
 				<td>$\land$</td>
 				<td>$\oplus$</td>
-				<td>$\ominus$</td>
 				<td>$\lor$</td>
 				<td></td>
 			</tr>
@@ -216,12 +212,6 @@ $j = PLCParser::jsonSchema($p, $table);
 							<input <?=($type==2?'checked="checked" ':'')?> name="type2" type="radio" id="type2" value="2">Char</label>
 						<label class="radio-inline">
 							<input <?=($type==3?'checked="checked" ':'')?> name="type2" type="radio" id="type3" value="3">Math</label>
-					</div>
-
-					<div class="form-group">
-						<div class="checkbox">
-							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" id="firstonly" value="1">First only</label>
-						</div>
 					</div>
 
 					<div>
@@ -274,12 +264,6 @@ $j = PLCParser::jsonSchema($p, $table);
 						
 							<label class="radio-inline control-label">
 								<input <?=($type==3?'checked="checked" ':'')?> name="type" type="radio" value="3">Math</label>
-					</div>
-
-					<div class="form-group">
-						<div class="checkbox">
-							<label><input <?=($firstonly?'checked="checked" ':'')?> type="checkbox" name="firstonly" value="1" />First only</label>
-						</div>
 					</div>
 				
 					<div class="form-group">
