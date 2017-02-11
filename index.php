@@ -4,14 +4,11 @@ define('SERVER_ROOT', dirname($_SERVER['SCRIPT_NAME']).'/');
 
 include __DIR__.'/src/elonmedia/plcparser/php/bootstrap.php';
 
-#$default = '(A (!(B or C)))';
-$default_input = '(1 ∧ (0 1) ⊕ (1 ¬ 1))';
+$default_input = '(1 ∧ (0 ∨ 1) ⊕ (1 ∨ ¬ 1))';
 $default_table_str = '{
-	"T": 1, "t": "1", "true": true, "TRUE": "true",
-	"F": 0, "f": "0", "false": false, "FALSE": "false"
+	"1": true,
+	"0": false
 }';
-#$default = '("\"")';
-#$default = '("\\\\")';
 
 $input = isset($_POST['input']) ? $_POST['input'] : $default_input;
 $firstonly = isset($_POST['firstonly']);
