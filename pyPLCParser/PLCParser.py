@@ -8,7 +8,7 @@ from . JsonSchema import JsonPropositionalLogicSchema
 Propositional Logic Clause Parser
 
 Author: Marko Manninen <elonmedia@gmail.com>
-Date: 7.2.2017
+Date: 11.2.2017
 
 """
 
@@ -16,9 +16,14 @@ NOT_OPERATOR = -1
 AND_OPERATOR = -2
 XOR_OPERATOR = -3
 OR_OPERATOR = -4
+# TODO: operator precedence?
 NAND_OPERATOR = -5
 XNOR_OPERATOR = -6
 NOR_OPERATOR = -7
+
+def xor(a):
+    # parity check
+    return len(list(filter(lambda x: x, a))) % 2 != 0
 
 class ParseException(Exception):
     pass
@@ -33,13 +38,13 @@ class PLCParser():
         self.STRING_LITERALS = re.compile('|'.join([r"%s[^%s\\]*(?:\\.[^%s\\]*)*%s" % 
                                           (w,w,w,w) for w in self.wrappers]))
         self.operators = {
-            NOT_OPERATOR: {'word': 'not', 'char': '!', 'math': '¬'},
-            AND_OPERATOR: {'word': 'and', 'char': '&', 'math': '∧'},
-            XOR_OPERATOR: {'word': 'xor', 'char': '^', 'math': '⊕'},
-            OR_OPERATOR:  {'word': 'or', 'char': '|', 'math': '∨'},
-            NAND_OPERATOR: {'word': 'nand', 'char': '↑', 'math': '↑'},
-            XNOR_OPERATOR: {'word': 'xnor', 'char': '⊖', 'math': '⊖'},
-            NOR_OPERATOR:  {'word': 'nor', 'char': '↓', 'math': '↓'}
+            NOT_OPERATOR: {'word': 'not', 'char': '!', 'math': '¬', 'func': lambda x: not x},
+            AND_OPERATOR: {'word': 'and', 'char': '&', 'math': '∧', 'func': all},
+            XOR_OPERATOR: {'word': 'xor', 'char': '^', 'math': '⊕', 'func': xor},
+            OR_OPERATOR:  {'word': 'or', 'char': '|', 'math': '∨', 'func': any},
+            NAND_OPERATOR: {'word': 'nand', 'char': '↑', 'math': '↑', 'func': lambda a: not all(a)},
+            XNOR_OPERATOR: {'word': 'xnor', 'char': '⊖', 'math': '⊖', 'func': lambda a: not xor(a)},
+            NOR_OPERATOR:  {'word': 'nor', 'char': '↓', 'math': '↓', 'func': lambda a: not any(a)}
         }
         self.operator_schemas = {}
     
@@ -308,18 +313,21 @@ class PLCParser():
             return None
 
     def evaluate(self, i, table={}):
+        # parse input if string, otherwise expecting correctly structured list
         return self.truth_value(self.parse(i) if type(i) == str else i, table)
 
     def truth_value(self, current_item, table, negate=True):
         # if item is not a list, check the truth value
         if not isinstance(current_item, list):
+            # truth table is possibly given
             if table and current_item in table:
                 current_item = table[current_item]
+            # force item to string and lowercase for simpler comparison
             return str(current_item).lower() in ['true', '1']
         # item is a list
         a = []
-        # should we negate next item, was it a list or values
-        operator = -4
+        # default operator
+        operator = AND_OPERATOR
         for item in current_item:
             # operators
             if not isinstance(item, list) and item in self.operators:
@@ -329,24 +337,9 @@ class PLCParser():
                     operator = item
             else:
                 a.append(self.truth_value(item, table))
-        # is group AND / OR / XOR
-        # take care of negation for the list result too
-        if operator == XOR_OPERATOR or operator == XNOR_OPERATOR:
-            # if any of the values are true, but not all
-            if operator == XNOR_OPERATOR:
-                return not (any(a) and not all(a)) if negate else any(a) and not all(a)
-            return any(a) and not all(a) if negate else not (any(a) and not all(a))
-        elif operator == AND_OPERATOR or operator == NAND_OPERATOR:
-            # if all values are true
-            if operator == NAND_OPERATOR:
-                return not all(a) if negate else all(a)
-            return all(a) if negate else not all(a)
-        # operator == OR_OPERATOR
-        else:
-            # if some of the values is true
-            if operator == NOR_OPERATOR:
-                return not any(a) if negate else any(a)
-            return any(a) if negate else not any(a)
+        # all operators have a function to check the truth value
+        # we must compare returned boolean against negate parameter
+        return self.operators[operator]['func'](a) == negate
 
     @staticmethod
     def jsonSchema(i, table={}):
