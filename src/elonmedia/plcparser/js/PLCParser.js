@@ -492,6 +492,83 @@ function PLCParser(parentheses, wrappers) {
 			return parser.any(a)
 		}
 	}
+	
+	parser.schema = function(input, table) {
+		// if input is string, parse it first
+		if (typeof(input) == parser.string_type) {
+			input = this.parse(input)
+		}
+		// assume input is well formed so that we can calculate the truth value
+		if (typeof(input) == parser.list_type) {
+			return this.buildJsonSchema(input[1], !input[0], table, false, false, false)
+		}
+		return None
+	}
+
+	parser.buildJsonSchema = function(current_item, mutual, table, negate, xor, xand) {
+		// if item is not a list, check the truth value
+		if (typeof(current_item) !== parser.list_type) {
+			// see if translation table is given
+			if (table && current_item in table)
+				current_item = table[current_item]
+			if (negate) {
+				return '{"not": {"pattern": "'+current_item+'"}}'
+			}
+			return '{"pattern": "'+current_item+'"}'
+		}
+		// item is a list
+		var a = []
+		// should we negate next item, was it a list or values
+		var next_item_negate = false, next_item_xor = false, next_item_xand = false
+		var i, len = current_item.length
+		for (i=0; i<len; ++i) {
+			var item = current_item[i]
+			// negation marker
+			if (item == -1) {
+				next_item_negate = true
+			// xor marker
+			} else if (item == -2) {
+				next_item_xor = true
+			// xand marker
+			} else if (item == -3) {
+				next_item_xand = true
+			} else {
+				a.push(this.buildJsonSchema(item, !mutual, table, next_item_negate, next_item_xor, next_item_xand))
+				// reset negation and xor
+				next_item_negate = false
+				next_item_xor = false
+				next_item_xand = false
+			}
+		}
+    
+		// is group AND / OR / XOR
+		// take care of negation for the list result too
+		if (xor) {
+			// if only one of the values is true, but not more
+			if (negate) {
+				return '{"not": {"oneOf": [' + a + ']}}'
+			}
+			return '{"oneOf": [' + a + ']}'
+		} else if (xand) {
+			// if any of the values is true, but not all
+			if (negate) {
+				return '{"not": {"allOf": [{"anyOf": [' + a + ']},{"not": {"allOf": [' + a + ']}}]}}'
+			}
+			return '{"allOf": [{"anyOf": [' + a + ']},{"not": {"allOf": [' + a + ']}}]}'
+		} else if (mutual) {
+			// if all values are true
+			if (negate) {
+				return '{"not": {"allOf": [' + a + ']}}'
+			}
+			return '{"allOf": [' + a + ']}'
+		} else {
+			// if some of the values is true
+			if (negate) {
+				return '{"not": {"anyOf": [' + a + ']}}'
+			}
+			return '{"anyOf": [' + a + ']}'
+		}
+	}
 	// return parser dictionary with all methods and variables
 	return parser
 }
@@ -505,10 +582,10 @@ PLCParser.parseInput = function(input_string) {
 	}
 }
 
-PLCParser.evaluateInput = function(input_string, table) {
+PLCParser.evaluateInput = function(input, table) {
 	var c = PLCParser()
 	try {
-		return c.evaluate(input_string, table)
+		return c.evaluate(input, table)
 	} catch(err) {
 		return null
 	}
@@ -532,24 +609,14 @@ PLCParser.validateInput = function(s) {
 	}
 }
 
-/*
-
-{
-    "not": {
-        "anyOf": [
-        	true,
-			{
-				"allOf": [
-					{
-						"oneOf": []
-					}
-				]
-			}
-        ]
-    }
+PLCParser.jsonSchema = function(input, table) {
+	var c = PLCParser()
+	try {
+		return c.schema(input, table)
+	} catch(err) {
+		return null
+	}
 }
-
-*/
 
 // for node environment require call
 if ( typeof module !== 'undefined' ) {
