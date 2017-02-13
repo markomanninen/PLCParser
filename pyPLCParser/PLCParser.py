@@ -12,11 +12,12 @@ Date: 11.2.2017
 
 """
 
+BOOLEAN_FALSE = 0
+BOOLEAN_TRUE = 1
 NOT_OPERATOR = -1
 AND_OPERATOR = -2
 XOR_OPERATOR = -3
 OR_OPERATOR = -4
-# TODO: operator precedence?
 NAND_OPERATOR = -5
 XNOR_OPERATOR = -6
 NOR_OPERATOR = -7
@@ -25,27 +26,44 @@ def xor(a):
     # parity check
     return len(list(filter(lambda x: x, a))) % 2 != 0
 
+# https://en.wikipedia.org/wiki/List_of_logic_symbols
+OPERATORS = {
+    # https://en.wikipedia.org/wiki/Negation
+    NOT_OPERATOR: {'word': 'not', 'char': '!', 'math': '¬', 'func': lambda x: not x},
+    # https://en.wikipedia.org/wiki/Logical_conjunction
+    AND_OPERATOR: {'word': 'and', 'char': '&', 'math': '∧', 'func': all},
+    # https://en.wikipedia.org/wiki/Exclusive_or
+    XOR_OPERATOR: {'word': 'xor', 'char': '^', 'math': '⊕', 'func': xor},
+    # https://en.wikipedia.org/wiki/Logical_disjunction
+    OR_OPERATOR:  {'word': 'or', 'char': '|', 'math': '∨', 'func': any},
+    # https://en.wikipedia.org/wiki/Sheffer_stroke
+    NAND_OPERATOR: {'word': 'nand', 'char': '/', 'math': '↑', 'func': lambda a: not all(a)},
+    # https://en.wikipedia.org/wiki/Logical_biconditional
+    XNOR_OPERATOR: {'word': 'xnor', 'char': '=', 'math': '↔', 'func': lambda a: not xor(a)},
+    # https://en.wikipedia.org/wiki/Logical_NOR
+    NOR_OPERATOR:  {'word': 'nor', 'char': '†', 'math': '↓', 'func': lambda a: not any(a)}
+}
+
+BOOLEANS = {
+    BOOLEAN_TRUE: {'word': 'true', 'char': '1', 'math': '⊤'},
+    BOOLEAN_FALSE: {'word': 'false', 'char': '0', 'math': '⊥'}
+}
+
+TRUES = [BOOLEANS[BOOLEAN_TRUE]['word'], BOOLEANS[BOOLEAN_TRUE]['char'], BOOLEANS[BOOLEAN_TRUE]['math']]
+
 class ParseException(Exception):
     pass
 
 class PLCParser():
 
-    def __init__(self, parentheses = ['(', ')'], wrappers = ["'", '"']):
+    def __init__(self, parentheses = ['(', ')'], wrappers = ["'", '"'], operator_precedence = (-7, -6, -5, -4, -3, -2, -1)):
         """ PLCParser class constructor """
         self.OPEN_PARENTHESES, self.CLOSE_PARENTHESES = parentheses
         # http://stackoverflow.com/questions/430759/regex-for-managing-escaped-characters-for-items-like-string-literals
         self.wrappers = wrappers
         self.STRING_LITERALS = re.compile('|'.join([r"%s[^%s\\]*(?:\\.[^%s\\]*)*%s" % 
                                           (w,w,w,w) for w in self.wrappers]))
-        self.operators = {
-            NOT_OPERATOR: {'word': 'not', 'char': '!', 'math': '¬', 'func': lambda x: not x},
-            AND_OPERATOR: {'word': 'and', 'char': '&', 'math': '∧', 'func': all},
-            XOR_OPERATOR: {'word': 'xor', 'char': '^', 'math': '⊕', 'func': xor},
-            OR_OPERATOR:  {'word': 'or', 'char': '|', 'math': '∨', 'func': any},
-            NAND_OPERATOR: {'word': 'nand', 'char': '↑', 'math': '↑', 'func': lambda a: not all(a)},
-            XNOR_OPERATOR: {'word': 'xnor', 'char': '⊖', 'math': '⊖', 'func': lambda a: not xor(a)},
-            NOR_OPERATOR:  {'word': 'nor', 'char': '↓', 'math': '↓', 'func': lambda a: not any(a)}
-        }
+        self.operator_precedence = operator_precedence
         self.operator_schemas = {}
         self.negate_unary_operator = False
     
@@ -69,13 +87,13 @@ class PLCParser():
         # wrap parenthesis and operator symbols with space for later usage
         input_string = input_string.replace(self.OPEN_PARENTHESES, ' %s ' % self.OPEN_PARENTHESES)
         input_string = input_string.replace(self.CLOSE_PARENTHESES, ' %s ' % self.CLOSE_PARENTHESES)
-        for operator, options in self.operators.items():
+        for operator, options in OPERATORS.items():
             input_string = input_string.replace(options['math'], ' %s ' % options['math'])
             input_string = input_string.replace(options['char'], ' %s ' % options['char'])
         # set literal string and its length for recursive parser
         self.literal_string = input_string
       
-    def _parse(self, l, operators=(-7, -6, -5, -4, -3, -2)):
+    def _parse(self, l, operators, unary_operator):
         # http://stackoverflow.com/questions/42032418/group-operands-by-logical-connective-precedence-from-python-list
         # if nothing on list, raise error
         if len(l) < 1:
@@ -83,7 +101,7 @@ class PLCParser():
         # one item on list
         if len(l) == 1:
             # if not negation or other operators
-            if l[0] != NOT_OPERATOR and not l[0] in operators:
+            if l[0] != unary_operator and not l[0] in operators:
                 # substitute literals back to original content if available
                 if not isinstance(l[0], list) and l[0] in self.literals:
                     l[0] = self.literals[l[0]]
@@ -102,40 +120,26 @@ class PLCParser():
             try:
                 # for left-associativity of binary operators
                 position = len(l) - 1 - l[::-1].index(operator)
-                return [self._parse(l[:position], operators), operator, self._parse(l[position+1:], operators[1:])]
+                return [self._parse(l[:position], operators, unary_operator), operator, self._parse(l[position+1:], operators[1:], unary_operator)]
             except ValueError:
-                return self._parse(l, operators[1:])
+                return self._parse(l, operators[1:], unary_operator)
         # expecting only not operator at this point
-        if l[0] != NOT_OPERATOR:
+        if l[0] != unary_operator:
             raise ParseException("Malformed input. Operator expected, %s found." % l[0])
         # return data with not operator
-        return [NOT_OPERATOR, self._parse(l[1:], operators)]
+        return [unary_operator, self._parse(l[1:], operators, unary_operator)]
 
     def substitute(self, x):
         y = x.strip().lower()
-        # not operator becomes -1
-        if y == "!" or y == "not" or y == "¬":
-            return NOT_OPERATOR
-        # and operator becomes -2
-        elif y == "&" or y == "and" or y == "∧":
-            return AND_OPERATOR
-        # xor operator becomes -3
-        elif y == "^" or y == "xor" or y == "⊕":
-            return XOR_OPERATOR
-        # or operator becomes -4
-        elif y == "|" or y == "or" or y == "∨":
-            return OR_OPERATOR
-        # or operator becomes -5
-        elif y == "↑" or y == "nand" or y == "↑":
-            return NAND_OPERATOR
-        # or operator becomes -6
-        elif y == "⊖" or y == "xnor" or y == "⊖":
-            return XNOR_OPERATOR
-        # or operator becomes -7
-        elif y == "↓" or y == "nor" or y == "↓":
-            return NOR_OPERATOR
-        elif y == "1" or y == "0":
-            return int(y)
+        # operators
+        for op, d in OPERATORS.items():
+            if y == d['word'] or y == d['char'] or y == d['math']:
+                return op
+        # booleans
+        for op, d in BOOLEANS.items():
+            if y == d['word'] or y == d['char'] or y == d['math']:
+                return op
+        # other
         return x
 
     def recursiveParenthesesGroups(self):
@@ -156,7 +160,7 @@ class PLCParser():
                     # also (& a b (| c d)) => (a & b) & (c | d) is possible!
                     if len(stack[-1][-1]) > 1 and \
                        isinstance(stack[-1][-1][0], int) and \
-                       stack[-1][-1][0] in self.operators and \
+                       stack[-1][-1][0] in OPERATORS and \
                        stack[-1][-1][0] != NOT_OPERATOR:
                         op = stack[-1][-1][0]
                         b = []
@@ -166,12 +170,15 @@ class PLCParser():
                         # in special case where only one operand and one operator is found
                         # we should handle the case differently on evaluation process
                         # TODO: it is not possible to deformat this kind of structure
+                        # back to string representation until deformat method is extended...
                         if op < -4 and len(b) == 2:
                             self.negate_unary_operator = True
                         stack[-1][-1] = b[:-1]
                     # see if remaining content has more than one
                     # operator and make them nested set in that case
-                    stack[-1][-1] = self._parse(stack[-1][-1])
+                    # last operator predecende is usually NOT_OPERATOR
+                    # but can be configured at the object initialization
+                    stack[-1][-1] = self._parse(stack[-1][-1], self.operator_precedence[:-1], self.operator_precedence[-1])
                     if not stack:
                         raise ParseException('Malformed input. Parenthesis mismatch. Opening parentheses missing.')
                 else:
@@ -278,13 +285,15 @@ class PLCParser():
             return None
     
     def deformat(self, lst, operator_type = "word"):
-        def _(current_item, operator_type, first=True):
+
+        def rec(current_item, operator_type, first=True):
             # if item is not a list, return value
             if not isinstance(current_item, list):
                 # boolean values
-                if current_item == 1 or str(current_item).lower() == 'true' or \
-                   current_item == 0 or str(current_item).lower() == 'false':
-                    return current_item
+                y = str(current_item).lower()
+                for op, d in BOOLEANS.items():
+                    if y == d['word'] or y == d['char'] or y == d['math']:
+                        return current_item
                 # normal items wrapped by the first configured wrapper char
                 # escaping wrapper char inside the string
                 current_item = current_item.replace(self.wrappers[0], '\\'+self.wrappers[0])
@@ -296,18 +305,19 @@ class PLCParser():
             # loop all items
             for item in current_item:
                 # operators
-                if not isinstance(item, list) and item in self.operators:
-                    a.append(self.operators[item][operator_type])
+                if not isinstance(item, list) and item in OPERATORS:
+                    a.append(OPERATORS[item][operator_type])
                 # item or list
                 else:
                     # recursively add next items
-                    a.append(_(item, operator_type, False))
+                    a.append(rec(item, operator_type, False))
             # close clause
             if not first:
                 a.append(self.CLOSE_PARENTHESES)
             return ' '.join(map(str, a))
+
         # call sub routine to deformat structure
-        return _(lst, operator_type)
+        return rec(lst, operator_type)
 
     @staticmethod
     def evaluateInput(i, table={}):
@@ -331,14 +341,14 @@ class PLCParser():
             # force item to string and lowercase for simpler comparison
             # if only single operator is given on input, then self.negate_unary_operator
             # is set to true, thus comparison here is done
-            return (str(current_item).lower() in ['true', '1']) != self.negate_unary_operator
+            return (str(current_item).lower() in TRUES) != self.negate_unary_operator
         # item is a list
         a = []
         # default operator
         operator = AND_OPERATOR
         for item in current_item:
             # operators
-            if not isinstance(item, list) and item in self.operators:
+            if not isinstance(item, list) and item in OPERATORS:
                 if item == NOT_OPERATOR:
                     negate = False
                 else:
@@ -347,7 +357,7 @@ class PLCParser():
                 a.append(self.truth_value(item, table))
         # all operators have a function to check the truth value
         # we must compare returned boolean against negate parameter
-        return self.operators[operator]['func'](a) == negate
+        return OPERATORS[operator]['func'](a) == negate
 
     @staticmethod
     def jsonSchema(i, table={}):
@@ -372,7 +382,7 @@ class PLCParser():
         operator = -2
         for item in current_item:
             # operators
-            if not isinstance(item, list) and item in self.operators:
+            if not isinstance(item, list) and item in OPERATORS:
                 if item == NOT_OPERATOR:
                     negate = False
                 else:
