@@ -4,11 +4,14 @@ define('SERVER_ROOT', dirname($_SERVER['SCRIPT_NAME']).'/');
 
 include __DIR__.'/src/elonmedia/plcparser/php/bootstrap.php';
 
-$default_input = '(1 ∧ (0 ∨ 1) ⊕ (1 ∨ ¬ 1))';
+#$default = '(A (!(B or C)))';
+$default_input = '(1 ∧ (0  ∨ 1) ⊕ (0 ∨ ¬ 1))';
 $default_table_str = '{
-	"1": true,
-	"0": false
+	"true": true, "1": true, "⊤": true,
+	"false": false, "0": false, "⊥": false
 }';
+#$default = '("\"")';
+#$default = '("\\\\")';
 
 $input = isset($_POST['input']) ? $_POST['input'] : $default_input;
 $firstonly = isset($_POST['firstonly']);
@@ -21,7 +24,7 @@ $v = PLCParser::validateInput($input);
 $p = PLCParser::parseInput($input);
 $d = PLCParser::deformatInput($p, $type==2, $firstonly, $type==3);
 $e = PLCParser::evaluateInput($p, $table);
-$j = PLCParser::jsonSchema($p, $table);
+//$j = PLCParser::jsonSchema($p, $table);
 
 ?>
 <!DOCTYPE html>
@@ -139,48 +142,66 @@ $j = PLCParser::jsonSchema($p, $table);
 			<table class="table table-bordered">
 			<tr>
 				<th></th>
+				<th>Boolean</th>
 				<th>Negation</th>
 				<th>Conjunction</th>
 				<th>Exclusive or</th>
-				<th>Disconjunction</th>
-				<th>Boolean</th>
+				<th>Disjunction</th>
 			</tr>
 			<tr>
 				<th>Word</th>
+				<td>true / false</td>
 				<td>not</td>
 				<td>and</td>
 				<td>xor</td>
 				<td>or</td>
-				<td>true / false</td>
 			</tr>
 			<tr>
 				<th>Char</th>
+				<td>1 / 0</td>
 				<td>!</td>
 				<td>&amp;</td>
 				<td>^</td>
 				<td>|</td>
-				<td>1 / 0</td>
 			</tr>
 			<tr>
 				<th>Math</th>
+				<td>$⊤$ / $⊥$</td>
 				<td>$\lnot$</td>
 				<td>$\land$</td>
 				<td>$\oplus$</td>
 				<td>$\lor$</td>
-				<td></td>
 			</tr>
 			</table>
 			</div>
-			<!--
-			<ul class="list-group">
-			<li class="list-group-item">and , &amp; , ∧</li>
-			<li class="list-group-item">or , | , ∨</li>
-			<li class="list-group-item">not , ! , ¬</li>
-			<li class="list-group-item">xor , ^ , ⊕</li>
-			<li class="list-group-item">1 , true</li>
-			<li class="list-group-item">0 , false</li>
-			</ul>
-			-->
+			<div class="table-responsive">
+			<table class="table table-bordered">
+			<tr>
+				<th></th>
+				<th>Negation of the conjunction</th>
+				<th>Logical (material) biconditional</th>
+				<th>Negation of the disjunction</th>
+			</tr>
+			<tr>
+				<th>Word</th>
+				<td>xand</td>
+				<td>xnor</td>
+				<td>nor</td>
+			</tr>
+			<tr>
+				<th>Char</th>
+				<td>/</td>
+				<td>=</td>
+				<td>†</td>
+			</tr>
+			<tr>
+				<th>Math</th>
+				<td>$↑$</td>
+				<td>$↔$</td>
+				<td>$↓$</td>
+			</tr>
+			</table>
+			</div>
 		</div>
 		
 		<a id="Parsers"></a>
@@ -229,12 +250,13 @@ $j = PLCParser::jsonSchema($p, $table);
 
 					<pre id="object"></pre>
 					
-					<div>
+					<!--<div>
 						<label>JSON validation schema:</label>
 					</div>
 
 					<pre id="schema"></pre>
-					<!--<div>$ \left( \left( 1 \land \left( 0 \lor \lnot 0 \right)  \land \oplus \left( 1 \lor 0 \right)  \right)  \right) = True $</div>-->
+					<div>$ \left( \left( 1 \land \left( 0 \lor \lnot 0 \right)  \land \oplus \left( 1 \lor 0 \right)  \right)  \right) = True $</div>
+					-->
 				  </div>
 			</div>
 			<div class="panel panel-primary">

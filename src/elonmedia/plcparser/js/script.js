@@ -1,7 +1,10 @@
-
-Array.prototype.last = function () {
-  return this[this.length - 1]
+/*
+Array.prototype.last = function (c) {
+	if (c !== undefined)
+		return this[this.length - 1]
+	else this[this.length - 1] = c
 }
+*/
 
 String.prototype.toTitleCase = function () {
   return this.replace(/\w\S*/g, function(txt) {
@@ -17,8 +20,12 @@ function evaluate(s, table) {
 	return PLCParser.evaluateInput(s, table)
 }
 
-function deformat(s, short, first, latex) {
-	return PLCParser.deformatInput(PLCParser.parseInput(s), short, first, latex)
+function deformat(s, operator_type) {
+	return PLCParser.deformatInput(PLCParser.parseInput(s), operator_type)
+}
+
+function schema(s, table) {
+	return PLCParser.jsonSchema(s, table)
 }
 
 function log(s) {
@@ -32,10 +39,12 @@ function change_deformat() {
 	if (!o) {
 		log(v + " = " + 'undefined')
 	} else {
-		var s = deformat(v, 
-				$('input[name=type2]:checked').val() == "2", 
-				$('#firstonly').prop("checked"),
-				$('input[name=type2]:checked').val() == "3")
+		var operator_type = 'word'
+		if ($('input[name=type2]:checked').val() == "2")
+			operator_type = 'char'
+		if ($('input[name=type2]:checked').val() == "3")
+			operator_type = 'math'
+		var s = deformat(v, operator_type)
 		var t = JSON.parse($('#table').text())
 		var e = evaluate(v, t)
 		log(s + " = " + e || 'false')
@@ -64,10 +73,12 @@ function keyup() {
 			log(expression)
 			previous_expression = expression
 		} else {
-			var isFirstOnly = $('#firstonly').prop("checked")
-			var isShort = $('input[name=type2]:checked').val() == "2"
-			var isMath = $('input[name=type2]:checked').val() == "3"
-			var formatted_input = deformat(input, isShort, isFirstOnly, isMath)
+			var operator_type = 'word'
+			if ($('input[name=type2]:checked').val() == "2")
+				operator_type = 'char'
+			if ($('input[name=type2]:checked').val() == "3")
+				operator_type = 'math'
+			var formatted_input = deformat(input, operator_type)
 			var truth_table = JSON.parse($('#table').text())
 			var boolean = ""+evaluate(input, truth_table) || 'false'
 			
@@ -76,6 +87,7 @@ function keyup() {
 			if (previous_expression != expression) {
 				$('#object').text(JSON.stringify(PLCParser.parseInput(formatted_input)))
 				log(expression)
+				//$('#schema').text(schema(input, truth_table))
 				previous_expression = expression
 			}
 		}
