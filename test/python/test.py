@@ -30,37 +30,34 @@ class PLCParserTestCase(unittest.TestCase):
 
 		self.assertEqual(parseInput("( A or B )"), ['A', -4, 'B'], '')
 		self.assertEqual(parseInput("( A | B )"), ['A', -4, 'B'], '')
-		"""
-		self.assertEqual(parseInput("(( 'A' and 'B' ) OR (A B))"), (False, [[['A', 'B'], ['A', 'B']]]), '')
-
-		self.assertEqual(parseInput("( 'A' 'B' ('A' 'C'))"), (True, [['A', 'B', ['A', 'C']]]), '')
-		self.assertEqual(parseInput("( 'A' and 'B' and ('A' or 'C'))"), (True, [['A', 'B', ['A', 'C']]]), '')
-		self.assertEqual(parseInput("( 'A' or 'B' or ('A' and 'C'))"), (False, [['A', 'B', ['A', 'C']]]), '')
-		self.assertEqual(parseInput("( 'A' or 'B' or ('A' 'C'))"), (False, [['A', 'B', ['A', 'C']]]), '')
-		self.assertEqual(parseInput("( 'A' or 'B' ('A' 'C'))"), (False, [['A', 'B', ['A', 'C']]]), '')
-		self.assertEqual(parseInput("( 'A' 'B' or ('A' 'C'))"), (False, [['A', 'B', ['A', 'C']]]), '')
 		
-		self.assertEqual(parseInput("( 'A\\'')"), (True, [["A'"]]), '')
-		self.assertEqual(parseInput('( "A\\"")'), (True, [['A"']]), '')
-		self.assertEqual(parseInput("( 'A(B)')"), (True, [['A(B)']]), '')
-
+		self.assertEqual(parseInput("(( 'A' and 'B' ) OR (A and B))"), [['A', -2, 'B'], -4, ['A', -2, 'B']], '')
+		
+		self.assertEqual(parseInput("( 'A' and 'B' and ('A' or 'C') )"), [['A', -2, 'B'], -2, ['A', -4, 'C']], '')
+		self.assertEqual(parseInput("( 'A' or 'B' or ('A' and 'C') )"), [['A', -4, 'B'], -4, ['A', -2, 'C']], '')
+		self.assertEqual(parseInput("( 'A' and 'B' or ('A' and 'C') )"), [['A', -2, 'B'], -4, ['A', -2, 'C']], '')
+		
+		self.assertEqual(parseInput("( 'A\\'')"), "A'", '')
+		self.assertEqual(parseInput('( "A\\"")'), 'A"', '')
+		self.assertEqual(parseInput("( 'A(B)')"), 'A(B)', '')
+		
 		self.assertEqual(parseInput('( ( "M" AND ( "(" or "AND" ) ) OR "T" )'), \
-		                  (False, [[['M', ['(', 'AND']], 'T']]), '')
+		                  [['M', -2, ['(', -4, 'AND']], -4, 'T'], '')
 		self.assertEqual(parseInput('( ( "M" AND ( "(" OR "AND" ) ) OR \'T\' )'), \
-		                  (False, [[['M', ['(', 'AND']], 'T']]), '')
+		                  [['M', -2, ['(', -4, 'AND']], -4, 'T'], '')
 
-		self.assertEqual(parseInput('( 1 2 )'), (True, [['1', '2']]), '')
-		self.assertEqual(parseInput('( 1.0 2.0 )'), (True, [['1.0', '2.0']]), '')
-		self.assertEqual(parseInput('( 1,0 2,0 )'), (True, [['1,0', '2,0']]), '')
-		self.assertEqual(parseInput('( 12*12 2.0-1.0 )'), (True, [['12*12', '2.0-1.0']]), '')
-
-		self.assertEqual(parseInput("(!a b)"), (True, [[-1, 'a', 'b']]), '')
-		self.assertEqual(parseInput("(!(a b))"), (True, [[-1, ['a', 'b']]]), '')
-		self.assertEqual(parseInput("(!(a | b))"), (True, [[-1, ['a', 'b']]]), '')
-		self.assertEqual(parseInput("((!(a b)))"), (True, [[[-1, ['a', 'b']]]]), '')
-		self.assertEqual(parseInput("!(a | b)"), (False, [-1, ['a', 'b']]), '')
-		self.assertEqual(parseInput("!!(a | b)"), (False, [-1, -1, ['a', 'b']]), '')
-
+		self.assertEqual(parseInput('( 1 & 2 )'), [1, -2, '2'], '')
+		self.assertEqual(parseInput('( 1.0 & 2.0 )'), ['1.0', -2, '2.0'], '')
+		self.assertEqual(parseInput('( 1,0 & 2,0 )'), ['1,0', -2, '2,0'], '')
+		self.assertEqual(parseInput('( 12*12 & 2.0-1.0 )'), ['12*12', -2, '2.0-1.0'], '')
+		
+		self.assertEqual(parseInput("(!a & b)"), [[-1, 'a'], -2, 'b'], '')
+		self.assertEqual(parseInput("(!(a & b))"), [-1, ['a', -2, 'b']], '')
+		self.assertEqual(parseInput("(!(a | b))"), [-1, ['a', -4, 'b']], '')
+		self.assertEqual(parseInput("((!(a | b)))"), [-1, ['a', -4, 'b']], '')
+		self.assertEqual(parseInput("!(a | b)"), [-1, ['a', -4, 'b']], '')
+		self.assertEqual(parseInput("!!(a | b)"), [-1, [-1, ['a', -4, 'b']]], '')
+		"""
 		self.assertEqual(parseInput("^(a b)"), (True, [-2, ['a', 'b']]), '')
 		self.assertEqual(parseInput("(^(a b))"), (True, [[-2, ['a', 'b']]]), '')
 		self.assertEqual(parseInput("((^(a b)))"), (True, [[[-2, ['a', 'b']]]]), '')
