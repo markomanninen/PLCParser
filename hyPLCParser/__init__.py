@@ -1,10 +1,22 @@
-# credits for the starting point of the magic:
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+#
+# Credits for the starting point of the magic:
 # https://github.com/yardsale8/hymagic/blob/master/hymagic/__init__.py
+# and special mentions to
+# Ryan (https://github.com/kirbyfan64) and 
+# Tuukka (https://github.com/tuturto) in hylang-discuss: 
+# https://groups.google.com/forum/#!forum/hylang-discuss
+# to make it possible for me to resolve all essential obstacles
+# when struggling with macros
+
 from IPython.core.magic import Magics, magics_class, line_cell_magic
 import ast
 
 try:
-    import hy
+    from hy.lex import LexException, PrematureEndOfInput, tokenize
+    from hy.compiler import hy_compile, HyTypeError
+    from hy.importer import ast_compile
 except ImportError as e:
     print("To use this magic extension, please install Hy (https://github.com/hylang/hy) with: pip install git+https://github.com/hylang/hy.git")
     from sys import exit
@@ -14,33 +26,41 @@ print("Use for example: %plc (1 and? 1)")
 print("Operators available: nope? ¬ and? ∧ xor? ⊕ or? ∨ nand? ↑ nxor? ↔ nor? ↓")
 print("Operands available: True 1 ⊤ False 0 ⊥")
 
-from hy.lex import LexException, PrematureEndOfInput, tokenize
-from hy.compiler import hy_compile, HyTypeError
-from hy.importer import ast_compile
-
 hy_program = """
 
+; these two method behave a little bit different when using import / require
+; actually eval-when-compile loses operators variable
+; but on the other hand eval-and-compile, even all seems good
+; usage of the reader macro $ doesn't give expected results
+;(eval-when-compile (setv operators []))
 (eval-and-compile (setv operators []))
 
+; define math operands
+(setv ⊤ 1)
+(setv ⊥ 0)
+
+; add operators to global variable so that on parser loop
+; we can use it on if clauses
 (defreader > [item]
   (if-not (in item operators)
     (.append operators item)))
 
+; define operator function and math alias
+; plus set them to operators global list
 (defmacro defoperator [op-name op-symbol params &rest body]
   `(do 
     (defn ~op-name ~params ~@body)
-    (setv ~op-symbol ~op-name)
     #>~op-name
+    (setv ~op-symbol ~op-name)
     #>~op-symbol))
 
 ; define true comparison function
 (defn true? [value] 
   (or (= value 1) (= value True) (= value "True")  (= value "⊤")))
 
-; same as nor at the moment...
+; same as nor at the moment... not? is a reserved word
 (defoperator nope? ¬ [&rest truth-list] 
   (not (any truth-list)))
-  ;(not (any (map true? truth-list))))
 
 ; and operation : zero or more arguments, zero will return false, 
 ; otherwise all items needs to be true
@@ -73,27 +93,24 @@ hy_program = """
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
 
-; define math operands
-(setv ⊤ 1)
-(setv ⊥ 0)
+(defn operand? [x]
+  (in x [⊤ True 1 "1" "True" "⊤" ⊥ False 0 "0" "False" "⊥"]))
 
 ; main parser loop for propositional logic clauses
-; todo: operator precedence!
+; todo: operator precedence
 (defreader $ [code]
   (if
-    ; scalar value
-    (not (coll? code))
-      `(true? ~code)
-    ; empty list
-    (= (len code) 0)
-      False
-    ; list with lenght of 1 and the single item not being the operator
+    ; if scalar value, return that
+    (not (coll? code)) code
+    ; else if empty list, return false
+    (= (len code) 0) False
+    ; else if list with lenght of 1 and that single item is not the operator
     (and (= (len code) 1) (not (in (get code 0) operators)))
       `#$~@code
-    ; list with three items, operator in the middle (infix)
+    ; else if list with three items, and the operator is in the middle (infix)
     (and (= (len code) 3) (in (get code 1) operators))
       `(~(get code 1) #$~(get code 0) #$~(get code 2))
-    ; list with two or more items, second is the operator
+    ; else if list with two or more items, and the second is the operator
     (and (> (len code) 2) (in (get code 1) operators))
       (do
         ; take first two items and reverse
@@ -104,25 +121,28 @@ hy_program = """
         (if (> (len b) 0)
           `(~@a #$~b)
           `(~@a)))
-    ; list with more items than 1 and operator is the first item
+    ; else if list with more items than 1 and the first item the operator
     (and (> (len code) 1) (in (get code 0) operators))
       (do
         ; take the first item i.e. operator
         (setv a (list (take 1 code)))
         ; append all numeric items after operator to a and flatten list
         (.append a (list (take-while 
-          (fn [x] (or (= 1 x) (= 0 x) (= "True" x) (= "⊤" x) (= "False" x) (= "⊥" x))) (drop 1 code))))
+          ; support numeric operands for math equations
+          (fn [x] (or (numeric? x) (in x ["1" "True" "⊤" "0" "False" "⊥"]))) (drop 1 code))))
         (setv a (flatten a))
         ; after the first items seek non numeric i.e. list
         (setv b (list (drop-while 
-          (fn [x] (or (= 1 x) (= 0 x) (= "True" x) (= "⊤" x) (= "False" x) (= "⊥" x))) (drop 1 code))))
+          ; support numeric operands for math equations
+          (fn [x] (or (numeric? x) (in x ["1" "True" "⊤" "0" "False" "⊥"]))) (drop 1 code))))
         ; b could be empty
         (if (> (len b) 0)
           `(~@a #$(~@b))
           `(~@a)))
-    ; possibly syntax error on clause
+    ; else possibly syntax error on clause
     `(print "Expression error!")))
 
+; add input to macro call
 #$%s
 
 """
@@ -152,16 +172,19 @@ def parse(tokens, source, filename, shell, interactive):
 
 @magics_class
 class PLCMagics(Magics):
-    """ Jupyter Notebook Magics (%plc and %%plc) for the Propositional Logic Clauses (PLC) 
-        written in Hy language (Lispy Python).
+    """ 
+    Jupyter Notebook Magics (%plc and %%plc) for Propositional Logic Clauses (PLC) 
+    written in Hy language (Lispy Python).
     """
     def __init__(self, shell):
         super(PLCMagics, self).__init__(shell)
     
     @line_cell_magic
     def plc(self, line = None, cell = None, filename = '<input>'):
-        """  """
-        source = hy_program % (line if line else cell)
+        # both line %plc and cell %%plc magics are prepared here.
+        # if cell magic is used then we prepend code with empty () 
+        # to enable normal hy code evaluation after that
+        source = hy_program % (line if line else "()%s" % cell)
         # get input tokens for compile
         tokens = get_tokens(source, filename)
         if tokens:
