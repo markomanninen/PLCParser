@@ -142,8 +142,8 @@ hy_program = """
     ; else possibly syntax error on clause
     `(print "Expression error!")))
 
-; add input to macro call
-#$%s
+; add input here
+%s
 
 """
 
@@ -182,9 +182,9 @@ class PLCMagics(Magics):
     @line_cell_magic
     def plc(self, line = None, cell = None, filename = '<input>'):
         # both line %plc and cell %%plc magics are prepared here.
-        # if cell magic is used then we prepend code with empty () 
-        # to enable normal hy code evaluation after that
-        source = hy_program % (line if line else "()%s" % cell)
+        # if line magic is used then we prepend code #$ reader macro
+        # to enable prefix hy code evaluation
+        source = hy_program % ("#$%s" % line if line else cell)
         # get input tokens for compile
         tokens = get_tokens(source, filename)
         if tokens:
