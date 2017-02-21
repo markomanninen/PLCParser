@@ -3,6 +3,15 @@
 from IPython.core.magic import Magics, magics_class, line_cell_magic
 import ast
 
+try:
+    import hy
+except ImportError as e:
+    print("To use this magic extension, please install Hy (https://github.com/hylang/hy) with: pip install git+https://github.com/hylang/hy.git")
+    from sys import exit
+    exit(e)
+
+print("Use for example: %plc (1 and? 1)")
+
 from hy.lex import LexException, PrematureEndOfInput, tokenize
 from hy.compiler import hy_compile, HyTypeError
 from hy.importer import ast_compile
