@@ -8,4 +8,6 @@ Propositional Logic Clause Parser (Python, PHP, Javascript)
 
 See [Jupyter notebook](http://nbviewer.jupyter.org/github/markomanninen/PLCParser/blob/master/Propositional%20Logic%20Clause%20Parser%20%28PLCParser%29.ipynb) at your convenience.
 
-Test demo site at Heroku: [http://plcparser.herokuapp.com/](http://plcparser.herokuapp.com/)
+New: PLCParser implemented in [Hy -language](http://nbviewer.jupyter.org/github/markomanninen/PLCParser/blob/master/Hy%20-level%20PLCParser.ipynb)!
+
+Test demo site (PHP and Javascript) at Heroku: [http://plcparser.herokuapp.com/](http://plcparser.herokuapp.com/)
