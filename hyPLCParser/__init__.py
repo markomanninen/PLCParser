@@ -30,22 +30,48 @@ hy_program = """
 
 ; these two method behave a little bit different when using import / require
 ; actually eval-when-compile loses operators variable
-; but on the other hand eval-and-compile, even all seems good
-; usage of the reader macro $ doesn't give expected results
 ;(eval-when-compile (setv operators []))
-(eval-and-compile (setv operators []))
+(eval-and-compile 
+  (setv operators []
+        operators-precedence []))
 
-; define math operands
+; add operators to global variable so that on a parser loop
+; we can use it on if clauses
+; for singular usage: #>operator
+; for multiple: #>[operator1 operator 2 ...]
+(defreader > [items] 
+  (do
+    ; transforming singular value to a list for the next for loop
+    (if (not (coll? items)) (setv items [items]))
+    (for [item items]
+      ; discard duplicates
+      (if-not (in item operators)
+        (.append operators item)))))
+
+; set the order of precedence for oprators
+; for singular usage: #<operator
+; for multiple: #<[operator1 operator 2 ...]
+; note that calling this macro will empty the previous list of precedence!
+(defreader < [items]
+  (do
+    ; (setv operators-precedence []) is not working here
+    ; for some macro evaluation - complilation order reason
+    ; so emptying the current operators-precedence list more verbose way
+    (if (pos? (len operators-precedence))
+      (while (pos? (len operators-precedence))
+        (.pop operators-precedence)))
+    ; transforming singular value to a list for the next for loop
+    (if (not (coll? items)) (setv items [items]))
+    (for [item items]
+      ; discard duplicates
+      (if-not (in item operators-precedence)
+        (.append operators-precedence item)))))
+
+; define math boolean operands
 (setv ⊤ 1)
 (setv ⊥ 0)
 
-; add operators to global variable so that on parser loop
-; we can use it on if clauses
-(defreader > [item]
-  (if-not (in item operators)
-    (.append operators item)))
-
-; define operator function and math alias
+; define operator function and math alias (op-symbol)
 ; plus set them to operators global list
 (defmacro defoperator [op-name op-symbol params &rest body]
   `(do 
@@ -54,9 +80,15 @@ hy_program = """
     (setv ~op-symbol ~op-name)
     #>~op-symbol))
 
+; add custom or native operators to the list
+; somebody might like this syntax more than using
+; reader macro directly. so calling (defoperators + - * /)
+; is same as calling #>[+ - * /]
+(defmacro defoperators [&rest args] `#>~args)
+
 ; define true comparison function
 (defn true? [value] 
-  (or (= value 1) (= value True) (= value "True")  (= value "⊤")))
+  (or (= value 1) (= value True)))
 
 ; same as nor at the moment... not? is a reserved word
 (defoperator nope? ¬ [&rest truth-list] 
@@ -93,54 +125,87 @@ hy_program = """
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
 
-(defn operand? [x]
-  (in x [⊤ True 1 "1" "True" "⊤" ⊥ False 0 "0" "False" "⊥"]))
+; helper functions for defmixfix ($) macros.
+(eval-and-compile
+  ; this takes a list of items at least 3
+  ; index must be bigger than 1 and smaller than the length of the list
+  ; left and right side of the index will be picked to a new list where
+  ; centermost item is moved to left and left to center
+  ; [1 a 2 b 3 c 4] idx=3 -> [1 a [b 2 3] c 4]
+  (defn list-nest [lst idx]
+    (setv tmp
+      (doto 
+        (list (take 1 (drop idx lst))) 
+        (.append (get lst (dec idx))) 
+        (.append (get lst (inc idx)))))
+    (doto 
+      (list (take (dec idx) lst))
+      (.append tmp)
+      (.extend (list (drop (+ 2 idx) lst)))))
+  
+  (defn one-not-operator? [code]
+    (and (= (len code) 1) (not (in (first code) operators))))
+
+  (defn second-operator? [code]
+    (and (pos? (len code)) (in (second code) operators)))
+  
+  (defn first-operator? [code]
+    (and (> (len code) 1) (in (first code) operators)))
+  
+  (defn third [lst] 
+    (get lst 2)))
+
+; macro to change precedence order of the operations.
+; argument list will be passed to the #< readermacro which 
+; will reset arguments as an operators-precedence list
+; example: (defprecedence and? xor? or?)
+; or straight to reader macro way: #<[and? xor? or?]
+; call (defprecedence) to empty the list to default state
+; in that case left-wise order of precedence is used when evaluating
+; the list of propositional logic or other symbols
+(defmacro defprecedence [&rest args] `#<~args)
+
+; macro that takes mixed prefix and infix notation clauses
+; for evaluating their value. this is same as calling
+; $ reader macro directly but might be more convenient way
+; inside lips code to use than reader macro syntax
+; there is no need to use parentheses with this macro
+(defmacro defmixfix [&rest items] `#$~items)
+
+; pass multiple (n) evaluation clauses. each of the must be
+; wrapped by () parentheses
+(defmacro defmixfix-n [&rest items]
+  (list-comp `#$~item [item items]))
 
 ; main parser loop for propositional logic clauses
-; todo: operator precedence
 (defreader $ [code]
   (if
-    ; if scalar value, return that
+    ; scalar value
     (not (coll? code)) code
-    ; else if empty list, return false
-    (= (len code) 0) False
-    ; else if list with lenght of 1 and that single item is not the operator
-    (and (= (len code) 1) (not (in (get code 0) operators)))
-      `#$~@code
-    ; else if list with three items, and the operator is in the middle (infix)
-    (and (= (len code) 3) (in (get code 1) operators))
-      `(~(get code 1) #$~(get code 0) #$~(get code 2))
-    ; else if list with two or more items, and the second is the operator
-    (and (> (len code) 2) (in (get code 1) operators))
-      (do
-        ; take first two items and reverse
-        (setv a (doto (list (take 2 code)) (.reverse)))
-        ; take rest of the items after second item
-        (setv b (list (drop 2 code)))
-        ; b could be empty
-        (if (> (len b) 0)
-          `(~@a #$~b)
-          `(~@a)))
-    ; else if list with more items than 1 and the first item the operator
-    (and (> (len code) 1) (in (get code 0) operators))
-      (do
-        ; take the first item i.e. operator
-        (setv a (list (take 1 code)))
-        ; append all numeric items after operator to a and flatten list
-        (.append a (list (take-while 
-          ; support numeric operands for math equations
-          (fn [x] (or (numeric? x) (in x ["1" "True" "⊤" "0" "False" "⊥"]))) (drop 1 code))))
-        (setv a (flatten a))
-        ; after the first items seek non numeric i.e. list
-        (setv b (list (drop-while 
-          ; support numeric operands for math equations
-          (fn [x] (or (numeric? x) (in x ["1" "True" "⊤" "0" "False" "⊥"]))) (drop 1 code))))
-        ; b could be empty
-        (if (> (len b) 0)
-          `(~@a #$(~@b))
-          `(~@a)))
-    ; else possibly syntax error on clause
-    `(print "Expression error!")))
+    ; empty list
+    (zero? (len code)) False
+    ; list with lenght of 1 and the single item not being the operator
+    (one-not-operator? code) `#$~@code
+    ; list with three or more items, second is the operator
+    (second-operator? code)
+      (do 
+        ; the second operator on the list is the default index
+        (setv idx 1)
+        ; loop over all operators
+        (for [op operators-precedence]
+          ; set new index if operator is found from the code and break in that case
+          (if (in op code) (do (setv idx (.index code op)) (break))))
+        ; make list nested based on the found index and evaluate again
+        `#$~(list-nest code idx))
+    ; list with more than 1 items and the first item is the operator
+    (first-operator? code)
+      ; take the first item i.e. operator and use
+      ; rest of the items as arguments once evaluated by #$
+      `(~(first code) ~@(list-comp `#$~part [part (drop 1 code)]))
+    ; possibly syntax error on clause
+    ; might be caused by arbitrary usage of operators and operands
+    ; something like: (1 1 and? 0 and?)
+    `(raise (Exception "Expression error!"))))
 
 ; add input here
 %s
