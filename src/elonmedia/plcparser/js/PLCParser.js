@@ -206,7 +206,7 @@ function PLCParser(parentheses, wrappers, operator_precedence) {
 				position = l.length - 1 - position
 				return [parser._parse(l.slice(0, position), operators, unary_operator), operator, parser._parse(l.slice(position+1, l.operators), operators.slice(1, l.operators), unary_operator)]
 			} else {
-				 return parser._parse(l, operators.slice(1, l.operators), unary_operator)
+				 return parser._parse(l, operators.slice(1, l.length), unary_operator)
 			}
 		}
 		// return data with not operator
