@@ -155,9 +155,28 @@ hy_program = """
             (setv boolean (not boolean))))
     boolean)
 
+;synonym for xor
+(setv ↮ xor?)
+#>↮
+
 ; negation of xor
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
+
+; equivalence
+; https://en.wikipedia.org/wiki/Logical_equivalence
+; with two values same as xnor but with more values
+; result differs: [1 1 1] = True = [0 0 0]
+(defoperator eqv? ≡ [&rest truth-list]
+  (setv boolean (if (pos? (len truth-list)) True False))
+  (for [truth-value truth-list]
+    (if (not? truth-value (first truth-list))
+      (do (setv boolean False) (break))))
+  boolean)
+
+; unquivalence
+(defoperator neqv? ≢ [&rest truth-list]
+  (not (apply eqv? truth-list)))
 
 ; Four implications macro
 ; Behaviour:
