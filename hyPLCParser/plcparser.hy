@@ -64,18 +64,18 @@
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
 
-; implies (¬P ∨ Q)
-; behaviour:
-; (→ 1 0 0) = (1 → 0 → 0) = (→ (→ 1 0) 0) =
-; (∨ (not (∨ (not 1) 0)) 0) -> (∨ ¬1 (∨ ¬0 0)) = True
-; tests:
+; Four implications macro
+; Behaviour:
+; (1 op 0 op 0) -> (op 1 0 0 ) -> (op (op 1 0) 0)
+; Tests:
 ; (for [y (range 2)]
 ;   (print "(→ y) =>" (x y)))
 ; (for [y (range 2)]
 ;   (for [z (range 2)]
-;     (print (% "(→ %s" y) (% "%s) =>" z) (x y z))))
-; also note that for single argument: [(x 1) (x 0)] = [True, False]
-(defoperator impl? → [&rest truth-list]
+;     (print (% "(op %s" y) (% "%s) =>" z) (x y z))))
+; Also note that [(op 1) (op 0)] = [True, False]
+(defmacro defimplication [op-name op-symbol func]
+  `(defoperator ~op-name ~op-symbol [&rest truth-list]
   (do 
     ; passed arguments is a tuple 
     ; so it needs to be cast to list for pop
@@ -96,16 +96,31 @@
             ; so we can get the next and remove it too
             (setv next (first args))
             (.remove args next)
-            ; recursvely get the result. previous could be a list as
+            ; recurisvely get the result. previous could be a list as
             ; well as next could be a list, thus prev needs to be evaluated
-            ; at least once more. this deploys (¬ P  ∨  Q) which is same as
-            ; (or? (nope? P) Q)
-            (setv result (any [(not (impl? prev)) (impl? next)]))
+            ; at least once more.
+            (setv result ~func)
             ;(print 'prev prev 'next next 'result result)
             ; and set result for the previous one
             (setv prev result)))
         ; return resulting boolean value
-        result))))
+        result)))))
+
+; Converse implication (P ∨ ¬Q)
+; https://en.wikipedia.org/wiki/Converse_implication
+(defimplication cimp? ← (any [(← prev) (not (← next))]))
+
+; Material nonimplication (P ∧ ¬Q)
+; https://en.wikipedia.org/wiki/Material_nonimplication
+(defimplication mnimp? ↛ (all [(↛ prev) (not (↛ next))]))
+
+; Converse nonimplication (¬P ∨ Q)
+; https://en.wikipedia.org/wiki/Converse_nonimplication
+(defimplication cnimp? ↚ (any [(not (↚ prev)) (↚ next)]))
+
+; Material implication (¬P ∧ Q)
+; https://en.wikipedia.org/wiki/Material_conditional
+(defimplication mimp? → (all [(not (→ prev)) (→ next)]))
 
 ; more function for 
 (eval-and-compile
