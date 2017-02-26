@@ -293,6 +293,37 @@ hy_program = """
 (defmacro defmixfix-n [&rest items]
   (list-comp `#$~item [item items]))
 
+; quote rather than evaluate!
+(defreader £ [code]
+  (if
+    ; scalar value
+    (not (coll? code)) code
+    ; empty list
+    (zero? (len code)) False
+    ; list with lenght of 1 and the single item not being the operator
+    ; NOTE that small ' char, the only difference between #$ reader macro!
+    (one-not-operator? code) `'#£~@code
+    ; list with three or more items, second is the operator
+    (second-operator? code)
+      (do 
+        ; the second operator on the list is the default index
+        (setv idx 1)
+        ; loop over all operators
+        (for [op operators-precedence]
+          ; set new index if operator is found from the code and break in that case
+          (if (in op code) (do (setv idx (.index code op)) (break))))
+        ; make list nested based on the found index and evaluate again
+        `#£~(list-nest code idx))
+    ; list with more than 1 items and the first item is the operator
+    (first-operator? code)
+      ; take the first item i.e. operator and use
+      ; rest of the items as arguments once evaluated by #$
+      `(~(first code) ~@(list-comp `#£~part [part (drop 1 code)]))
+    ; possibly syntax error on clause
+    ; might be caused by arbitrary usage of operators and operands
+    ; something like: (1 1 and? 0 and?)
+    `(raise (Exception "Expression error!"))))
+
 ; main parser loop for propositional logic clauses
 (defreader $ [code]
   (if
