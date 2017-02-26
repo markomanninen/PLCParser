@@ -1,8 +1,40 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
+# Copyright (c) 2013 Paul Tagliamonte <paultag@debian.org>
+# Copyright (c) 2013 Gergely Nagy <algernon@madhouse-project.org>
+# Copyright (c) 2013 James King <james@agentultra.com>
+# Copyright (c) 2013 Julien Danjou <julien@danjou.info>
+# Copyright (c) 2013 Konrad Hinsen <konrad.hinsen@fastmail.net>
+# Copyright (c) 2013 Thom Neale <twneale@gmail.com>
+# Copyright (c) 2013 Will Kahn-Greene <willg@bluesock.org>
+# Copyright (c) 2013 Bob Tolbert <bob@tolbert.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+# hymagic is an adaptation of the HyRepl to allow ipython iteration
+# hymagic author - Todd Iverson
+# Available as github.com/yardsale8/hymagic
+#
 # Credits for the starting point of the magic:
 # https://github.com/yardsale8/hymagic/blob/master/hymagic/__init__.py
+#
 # and special mentions to:
 # Ryan (https://github.com/kirbyfan64) and 
 # Tuukka (https://github.com/tuturto) in the hylang discuss forum: 
@@ -29,7 +61,6 @@ print("Operands available: True 1 ⊤ False 0 ⊥")
 hy_program = """
 
 ; these two method behave a little bit different when using import / require
-; actually eval-when-compile loses operators variable
 ;(eval-when-compile (setv operators []))
 (eval-and-compile 
   ; without eval setv doesn't work as a global variable for macros
@@ -128,18 +159,18 @@ hy_program = """
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
 
-; implies (¬P ∨ Q)
-; behaviour:
-; (→ 1 0 0) = (1 → 0 → 0) = (→ (→ 1 0) 0) =
-; (∨ (not (∨ (not 1) 0)) 0) -> (∨ ¬1 (∨ ¬0 0)) = True
-; tests:
+; Four implications macro
+; Behaviour:
+; (1 op 0 op 0) -> (op 1 0 0 ) -> (op (op 1 0) 0)
+; Tests:
 ; (for [y (range 2)]
 ;   (print "(→ y) =>" (x y)))
 ; (for [y (range 2)]
 ;   (for [z (range 2)]
-;     (print (% "(→ %s" y) (% "%s) =>" z) (x y z))))
-; also note that for single argument: [(x 1) (x 0)] = [True, False]
-(defoperator impl? → [&rest truth-list]
+;     (print (% "(op %s" y) (% "%s) =>" z) (x y z))))
+; Also note that [(op 1) (op 0)] = [True, False]
+(defmacro defimplication [op-name op-symbol func]
+  `(defoperator ~op-name ~op-symbol [&rest truth-list]
   (do 
     ; passed arguments is a tuple 
     ; so it needs to be cast to list for pop
@@ -160,16 +191,31 @@ hy_program = """
             ; so we can get the next and remove it too
             (setv next (first args))
             (.remove args next)
-            ; recursvely get the result. previous could be a list as
+            ; recurisvely get the result. previous could be a list as
             ; well as next could be a list, thus prev needs to be evaluated
-            ; at least once more. this deploys (¬ P  ∨  Q) which is same as
-            ; (or? (nope? P) Q)
-            (setv result (any [(not (impl? prev)) (impl? next)]))
+            ; at least once more.
+            (setv result ~func)
             ;(print 'prev prev 'next next 'result result)
             ; and set result for the previous one
             (setv prev result)))
         ; return resulting boolean value
-        result))))
+        result)))))
+
+; Converse implication (P ∨ ¬Q)
+; https://en.wikipedia.org/wiki/Converse_implication
+(defimplication cimp? ← (any [(← prev) (not (← next))]))
+
+; Material nonimplication (P ∧ ¬Q)
+; https://en.wikipedia.org/wiki/Material_nonimplication
+(defimplication mnimp? ↛ (all [(↛ prev) (not (↛ next))]))
+
+; Converse nonimplication (¬P ∨ Q)
+; https://en.wikipedia.org/wiki/Converse_nonimplication
+(defimplication cnimp? ↚ (any [(not (↚ prev)) (↚ next)]))
+
+; Material implication (¬P ∧ Q)
+; https://en.wikipedia.org/wiki/Material_conditional
+(defimplication mimp? → (all [(not (→ prev)) (→ next)]))
 
 ; helper functions for defmixfix ($) macros.
 (eval-and-compile
@@ -295,6 +341,15 @@ class PLCMagics(Magics):
     def __init__(self, shell):
         super(PLCMagics, self).__init__(shell)
     
+    @line_cell_magic
+    def hylang(self, line = None, cell = None, filename = '<input>'):
+        # both line %hylang and cell %%hylang magics are prepared here.
+        source = line if line else cell
+        # get input tokens for compile
+        tokens = get_tokens(source, filename)
+        if tokens:
+            return parse(tokens, source, filename, self.shell, ast.Interactive)
+
     @line_cell_magic
     def plc(self, line = None, cell = None, filename = '<input>'):
         # both line %plc and cell %%plc magics are prepared here.
