@@ -64,6 +64,49 @@
 (defoperator xnor? ↔ [&rest truth-list]
   (not (apply xor? truth-list)))
 
+; implies (¬P ∨ Q)
+; behaviour:
+; (→ 1 0 0) = (1 → 0 → 0) = (→ (→ 1 0) 0) =
+; (∨ (not (∨ (not 1) 0)) 0) -> (∨ ¬1 (∨ ¬0 0)) = True
+; tests:
+; (for [y (range 2)]
+;   (print "(→ y) =>" (x y)))
+; (for [y (range 2)]
+;   (for [z (range 2)]
+;     (print (% "(→ %s" y) (% "%s) =>" z) (x y z))))
+; also note that for single argument: [(x 1) (x 0)] = [True, False]
+(defoperator impl? → [&rest truth-list]
+  (do 
+    ; passed arguments is a tuple 
+    ; so it needs to be cast to list for pop
+    (setv args (list truth-list))
+    (if (= (len args) 1) (true? (first args))
+      ; else
+      (do
+        ; default return value is False
+        (setv result False)
+        ; take the first element of list and remove it
+        (setv prev (first args))
+        (.remove args prev)
+        ; loop over all args
+        (while
+          (pos? (len args))
+          (do
+            ; there are at least two items on a list at the moment
+            ; so we can get the next and remove it too
+            (setv next (first args))
+            (.remove args next)
+            ; recursvely get the result. previous could be a list as
+            ; well as next could be a list, thus prev needs to be evaluated
+            ; at least once more. this deploys (¬ P  ∨  Q) which is same as
+            ; (or? (nope? P) Q)
+            (setv result (any [(not (impl? prev)) (impl? next)]))
+            ;(print 'prev prev 'next next 'result result)
+            ; and set result for the previous one
+            (setv prev result)))
+        ; return resulting boolean value
+        result))))
+
 ; more function for 
 (eval-and-compile
   ; this takes a list of items at least 3
@@ -96,10 +139,15 @@
 
 ; macro to change precedence order of the operations.
 ; argument list will be passed to the #< readermacro which 
-; will reset arguments as an operators-precedence list
+; will reset arguments to a new operators-precedence list
 ; example: (defprecedence and? xor? or?)
 ; or straight to reader macro way: #<[and? xor? or?]
-; call (defprecedence) to empty the list to default state
+;
+; note that calling this macro will empty the previous list of precedence!
+; to keep the previous set one should do something like:
+; (defprecedence (doto operators-precedence (.extend [operator-x operator-y ...])))
+;
+; call (defprecedence) to empty the list to the default state
 ; in that case left-wise order of precedence is used when evaluating
 ; the list of propositional logic or other symbols
 (defmacro defprecedence [&rest args] `#<~args)
